@@ -26,7 +26,9 @@ A drop-in replacement for the core Langfuse tracing workflow, built for runs tha
 
 <br>
 
-<img src="web/public/brand/decision-field.webp" alt="Kibitz decision field" width="100%">
+<img src="docs/media/tour.gif" alt="Kibitz product tour" width="100%">
+
+<sub>⌘K to jump anywhere. Every screen above runs on the same trace data.</sub>
 
 </div>
 
@@ -102,6 +104,12 @@ chain  user request                       14.4K tok · 27.9s   ← collapse it, 
   tool       compute(merge)
   llm        draft()                               ⚠ error (number with no source)
 ```
+
+<div align="center">
+<img src="docs/media/run-tree.gif" alt="156 observations collapsing into 6 request groups, then a finding opened with its evidence" width="100%">
+<br>
+<sub>156 observations fold into 6 request groups. Open a finding and it shows the values it was computed from.</sub>
+</div>
 
 Building that tree surfaced four instrumentation bugs, all of which we fixed:
 
@@ -270,6 +278,43 @@ Langfuse's entity axis (sessions, users, scores, evaluators, annotations, datase
 LangSmith's workflow (nested run tree, waterfall, attribute filters, automation rules, baseline
 comparison, playground, threads) — on the same data. `Run ↔ Trace`, `Turn ↔ Observation`.
 
+<table>
+<tr>
+<td width="50%"><img src="docs/media/dashboard.webp" alt="Dashboard"><br><sub><b>/dashboard</b> — cost, latency and token series, failure modes ranked by what they cost</sub></td>
+<td width="50%"><img src="docs/media/traces.webp" alt="Traces"><br><sub><b>/traces</b> — one row per run, colored cells are the problem points</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/trace-detail.webp" alt="Trace detail"><br><sub><b>/traces/[id]</b> — decision path, backward arcs for repeats, provenance for every number</sub></td>
+<td><img src="docs/media/run-tree.webp" alt="Run tree"><br><sub><b>…/timeline</b> — nested run tree and waterfall, with the observation detail pane</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/failures.webp" alt="Failure modes"><br><sub><b>/failures</b> — runs grouped by the rule that flagged them</sub></td>
+<td><img src="docs/media/thread.webp" alt="Threads"><br><sub><b>/threads/[id]</b> — request groups stitched back into a conversation</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/datasets.webp" alt="Datasets"><br><sub><b>/datasets</b> — items, runs and a comparison matrix</sub></td>
+<td><img src="docs/media/prompt.webp" alt="Prompts"><br><sub><b>/prompts/[name]</b> — versions, labels and diffs between them</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/evaluators.webp" alt="Evaluators"><br><sub><b>/evaluators</b> — deterministic rules and model graders are never drawn with the same weight</sub></td>
+<td><img src="docs/media/annotation.webp" alt="Annotation queue"><br><sub><b>/annotation</b> — human review queue, with the reason each trace was queued</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/playground.webp" alt="Playground"><br><sub><b>/playground</b> — edit a recorded call and generate a run snippet</sub></td>
+<td><img src="docs/media/automations.webp" alt="Automations"><br><sub><b>/automations</b> — filter → sampling → action, with a live dry run</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/skills.webp" alt="Skill candidates"><br><sub><b>/skills</b> — patterns repeated <i>across</i> sessions, counted rather than guessed</sub></td>
+<td><img src="docs/media/settings.webp" alt="Settings"><br><sub><b>/settings</b> — language, the full rule text, CLI account status</sub></td>
+</tr>
+</table>
+
+**Attribute filters compose, and a filtered view is just a URL.**
+
+<div align="center">
+<img src="docs/media/filters.gif" alt="Building an AND filter across status, model and tag" width="100%">
+</div>
+
 | Route | Screen |
 | :-- | :-- |
 | `/` | Landing — only numbers actually counted from the traces in this build |
@@ -400,6 +445,8 @@ In light mode the status colors have to come down — amber and red on white are
 
 Follows the system setting, with a manual switch. An inline `<head>` script sets the class before
 first paint, so there is no flash.
+
+<img src="docs/media/theme.gif" alt="Switching between dark and light" width="100%">
 
 **Sequential ramps invert between themes.** In dark, darker = lower; in light, lighter = lower —
 otherwise the lowest values would be the loudest thing on a white background. Both ramps were

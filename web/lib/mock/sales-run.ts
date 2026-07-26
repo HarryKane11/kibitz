@@ -167,7 +167,7 @@ const drafts: Draft[] = [
     context: ctx(1520, 4200),
     messageIds: msgs("msg_u0", "msg_a1", "msg_t2", "msg_t3", "msg_t4", "msg_t5"),
     prompt: 'get_record(id="rpt_9f21")',
-    output: "42 domestic rows · total ₩4.12B",
+    output: "42 domestic rows · total $4.12M",
   },
   {
     index: 6,
@@ -187,7 +187,7 @@ const drafts: Draft[] = [
     context: ctx(1700, 7100),
     messageIds: msgs("msg_u0", "msg_a1", "msg_t4", "msg_t5", "msg_t6"),
     prompt: 'get_record(id="rpt_9f22")',
-    output: "38 international rows · total ₩2.78B",
+    output: "38 international rows · total $2.78M",
   },
   {
     index: 7,
@@ -207,7 +207,7 @@ const drafts: Draft[] = [
     context: ctx(1900, 9200),
     messageIds: msgs("msg_u0", "msg_a1", "msg_t5", "msg_t6", "msg_t7"),
     prompt: 'get_record(id="rpt_9f23")',
-    output: "29 partner rows · total ₩1.34B",
+    output: "29 partner rows · total $1.34M",
   },
   {
     index: 8,
@@ -245,7 +245,7 @@ const drafts: Draft[] = [
     call: "compute(sum)",
     callHash: "e93b02",
     resultKey: "ok",
-    returned: [{ id: "sum:total", label: "total ₩8.24B" }],
+    returned: [{ id: "sum:total", label: "total $8.24M" }],
     durationMs: 700,
     tokens: 620,
     costUsd: 0.0028,
@@ -253,7 +253,7 @@ const drafts: Draft[] = [
     context: ctx(1000, 13800),
     messageIds: msgs("msg_a1", "msg_t6", "msg_t7", "msg_t8", "msg_t9"),
     prompt: "compute(sum)",
-    output: "₩4.12B + ₩2.78B + ₩1.34B = ₩8.24B",
+    output: "$4.12M + $2.78M + $1.34M = $8.24M",
   },
   {
     index: 10,
@@ -272,7 +272,7 @@ const drafts: Draft[] = [
     messageIds: msgs("msg_a1", "msg_t7", "msg_t8", "msg_t9", "msg_t10"),
     prompt: "Write a user-facing summary from the total.",
     output:
-      "Total Q3 2026 revenue is ₩8.24B.\nDomestic ₩4.12B, international ₩2.78B, partner ₩1.34B.\nUp 12% year over year.",
+      "Total Q3 2026 revenue is $8.24M.\nDomestic $4.12M, international $2.78M, partner $1.34M.\nUp 12% year over year.",
     note: {
       kind: "unsourced-number",
       evidence: [
@@ -300,7 +300,7 @@ const drafts: Draft[] = [
     context: ctx(1200, 13800),
     messageIds: msgs("msg_a1", "msg_t8", "msg_t9", "msg_t10", "msg_t11"),
     prompt: "respond()",
-    output: "Total Q3 2026 revenue is ₩8.24B. …",
+    output: "Total Q3 2026 revenue is $8.24M. …",
   },
   {
     index: 12,
@@ -377,12 +377,12 @@ export const salesRun: Run = {
   score: { accuracy: 0, errors: 0, wastes: 0, wastedTokenPct: 0, phases: [] },
   turns,
   answer: {
-    text: "Total Q3 2026 revenue is ₩8.24B. Domestic ₩4.12B, international ₩2.78B, partner ₩1.34B. Up 12% year over year.",
+    text: "Total Q3 2026 revenue is $8.24M. Domestic $4.12M, international $2.78M, partner $1.34M. Up 12% year over year.",
     claims: [
-      { text: "₩8.24B", sourceTurn: 9 },
-      { text: "₩4.12B", sourceTurn: 5 },
-      { text: "₩2.78B", sourceTurn: 6 },
-      { text: "₩1.34B", sourceTurn: 7 },
+      { text: "$8.24M", sourceTurn: 9 },
+      { text: "$4.12M", sourceTurn: 5 },
+      { text: "$2.78M", sourceTurn: 6 },
+      { text: "$1.34M", sourceTurn: 7 },
       { text: "12%", sourceTurn: null },
     ],
   },

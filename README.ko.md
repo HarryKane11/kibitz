@@ -26,7 +26,9 @@
 
 <br>
 
-<img src="web/public/brand/decision-field.webp" alt="Kibitz decision field" width="100%">
+<img src="docs/media/tour.gif" alt="Kibitz 제품 투어" width="100%">
+
+<sub>⌘K 로 어디든 간다. 위의 모든 화면은 같은 트레이스 데이터 위에서 돌아간다.</sub>
 
 </div>
 
@@ -100,6 +102,12 @@ chain  사용자 요청                       14.4K tok · 27.9초   ← 접으�
   tool       compute(merge)
   llm        draft()                         ⚠ 오류 (출처 없는 숫자)
 ```
+
+<div align="center">
+<img src="docs/media/run-tree.gif" alt="156개 관측이 6개 요청 묶음으로 접히고, 판정을 열면 근거가 붙는다" width="100%">
+<br>
+<sub>156개 관측이 6개 요청 묶음으로 접힌다. 판정을 열면 그것을 계산해낸 값이 같이 뜨다.</sub>
+</div>
 
 트리를 만들면서 계측 정확도 문제 네 가지가 드러났고 함께 고쳤다.
 
@@ -262,6 +270,43 @@ Langfuse의 엔티티 축(세션·사용자·스코어·평가자·어노테이�
 흐름(중첩 run tree·워터폴·속성 필터·automation rule·baseline 비교·playground·thread)을 같은 데이터
 위에 얹었다. `Run ↔ Trace`, `Turn ↔ Observation`.
 
+<table>
+<tr>
+<td width="50%"><img src="docs/media/dashboard.webp" alt="대시보드"><br><sub><b>/dashboard</b> — 비용·지연·토큰 시계열, 비용 순으로 줄 세운 실패 유형</sub></td>
+<td width="50%"><img src="docs/media/traces.webp" alt="트레이스"><br><sub><b>/traces</b> — 런 하나가 한 줄, 색이 들어간 칸이 문제 지점</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/trace-detail.webp" alt="트레이스 상세"><br><sub><b>/traces/[id]</b> — 결정 경로, 반복을 되돌아가는 호로, 숫자마다 출처</sub></td>
+<td><img src="docs/media/run-tree.webp" alt="런 트리"><br><sub><b>…/timeline</b> — 중첩 run tree·워터폴 + 관측 상세 패널</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/failures.webp" alt="실패 유형"><br><sub><b>/failures</b> — 어느 규칙이 잡았는지로 묶은 런</sub></td>
+<td><img src="docs/media/thread.webp" alt="스레드"><br><sub><b>/threads/[id]</b> — 요청 묶음을 대화로 다시 이어서</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/datasets.webp" alt="데이터셋"><br><sub><b>/datasets</b> — 항목·실행 + 비교 매트릭스</sub></td>
+<td><img src="docs/media/prompt.webp" alt="프롬프트"><br><sub><b>/prompts/[name]</b> — 버전·라벨·버전 간 diff</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/evaluators.webp" alt="평가자"><br><sub><b>/evaluators</b> — 결정론 규칙과 모델 채점을 절대 같은 무게로 그리지 않는다</sub></td>
+<td><img src="docs/media/annotation.webp" alt="어노테이션 큐"><br><sub><b>/annotation</b> — 사람 검토 큐, 큐에 오른 이유가 붙는다</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/playground.webp" alt="플레이그라운드"><br><sub><b>/playground</b> — 기록된 호출을 편집 + 실행 스니펙 생성</sub></td>
+<td><img src="docs/media/automations.webp" alt="자동화"><br><sub><b>/automations</b> — 필터 → 샘플링 → 액션, 지금 무엇을 잡는지 계산해 보여준다</sub></td>
+</tr>
+<tr>
+<td><img src="docs/media/skills.webp" alt="스킬 후보"><br><sub><b>/skills</b> — 세션을 <i>넘어</i> 반복되는 패턴. 물어본 게 아니라 센 값이다</sub></td>
+<td><img src="docs/media/settings.webp" alt="설정"><br><sub><b>/settings</b> — 언어, 탐지 규칙 전문, CLI 계정 연결 상태</sub></td>
+</tr>
+</table>
+
+**속성 필터는 조합되고, 걸린 화면은 그자리 URL이다.**
+
+<div align="center">
+<img src="docs/media/filters.gif" alt="상태·모델·태그를 AND로 묶는 필터 빌더" width="100%">
+</div>
+
 | 경로 | 화면 |
 | :-- | :-- |
 | `/` | 랜딩 — 이 빌드에 담긴 트레이스에서 실제로 센 숫자만 쓴다 |
@@ -391,6 +436,8 @@ Vercel이 `--color-success`와 `--color-warning`을 회색(`#8f8f8f`)으로 두�
 
 시스템 설정을 따르고 수동 전환도 된다. `<head>` 인라인 스크립트가 첫 페인트 전에 클래스를
 정하므로 깜빡임이 없다.
+
+<img src="docs/media/theme.gif" alt="다크↔라이트 전환" width="100%">
 
 **순차 램프는 테마마다 방향이 뒤집힌다.** 다크에서는 어두움=낮음, 라이트에서는 밝음=낮음이어야
 한다 — 그러지 않으면 흰 배경에서 낮은 값이 가장 도드라진다. 두 램프 모두 OKLab 명도 단조성과 셀

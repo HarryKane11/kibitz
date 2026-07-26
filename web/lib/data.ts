@@ -1,6 +1,7 @@
 import "server-only";
 import capturedRuns from "@/lib/mock/traces.json";
-import { loadStoredRuns } from "@/lib/store";
+import { loadStoredRun, loadStoredRuns, storedFileCount } from "@/lib/store";
+import { aggregates, indexedCount, summaries, syncFromFiles, type RunRow } from "@/lib/index-db";
 import { matchRun, shortcuts, type Query } from "@/lib/query";
 import { salesRun } from "@/lib/mock/sales-run";
 import {
@@ -291,7 +292,7 @@ function buildRun(s: (typeof SEEDS)[number]): Run {
  */
 const realRuns = capturedRuns as unknown as Run[];
 
-const USERS = ["u_hyeonwoo", "u_jimin", "u_taeyang", "u_seoyeon", "u_minjae"];
+const USERS = ["u_alice", "u_ben", "u_evan", "u_chen", "u_dara"];
 const TAG_POOL = ["production", "staging", "coding", "research", "long-horizon", "regression"];
 
 /**
@@ -335,6 +336,44 @@ const DEMO_RUNS = [{ ...salesRun, score: computeScore(salesRun.turns) }, ...SEED
  * 캐시 문제를 피하고, SDK가 보낸 session/user/tag 메타데이터를 그대로 보존한다.
  * 실데이터가 하나라도 있으면 합성 데모는 섞지 않는다.
  */
+/* ══════════════════════════════════════════════════════════════
+   인덱스 경유 읽기 — 목록·집계는 파일을 열지 않는다
+   ──────────────────────────────────────────────────────────────
+   `allRuns()` 는 저장된 트레이스를 전부 파싱한다. 그게 페이지 렌더마다 일어나므로
+   런이 늘면 모든 화면이 같이 느려진다 (측정값은 lib/index-db.ts 주석에).
+
+   목록과 집계는 관측 본문이 필요 없다. 요약 열만 SQLite 에서 읽으면 개수와
+   무관하게 일정하다. 상세 화면은 파일 **하나**만 읽는다.
+   ══════════════════════════════════════════════════════════════ */
+
+/** 인덱스가 파일과 어긋나 있으면 맞춘다. 개수만 비교하므로 싸다. */
+function ensureIndex(): void {
+  try {
+    const files = storedFileCount();
+    if (files !== indexedCount()) syncFromFiles(loadStoredRun);
+  } catch {
+    // 인덱스는 파생이다. 못 맞추면 파일 경로로 계속 간다.
+  }
+}
+
+/** 저장된 트레이스 요약. 목록·필터·대시보드가 쓴다. */
+export async function storedSummaries(query: Parameters<typeof summaries>[0] = {}): Promise<RunRow[]> {
+  ensureIndex();
+  return summaries(query);
+}
+
+/** 대시보드 집계. 20,000 건에서도 파일을 열지 않는다. */
+export async function storedAggregates(since?: string) {
+  ensureIndex();
+  return aggregates(since);
+}
+
+/** 트레이스 하나. 개수와 무관하게 파일 하나만 읽는다. */
+export async function storedRun(id: string): Promise<Run | undefined> {
+  const run = loadStoredRun(id);
+  return run ? { ...run, score: computeScore(run.turns) } : undefined;
+}
+
 export function allRuns(): Run[] {
   const byId = new Map<string, Run>();
   for (const run of [...realRuns, ...loadStoredRuns()]) {
