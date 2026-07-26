@@ -129,14 +129,14 @@ are not counted. Counting them would make chatty runs look accurate for free.
 **Local dev**
 
 ```bash
-# 1. Run the app (ships with 9 synthetic
-#    fixtures, so it is never an empty screen)
+# 1. Run the app — ships with 9 synthetic
+#    fixtures, so it is never blank
 pnpm --dir web install
 pnpm --dir web dev
 
-# 2. Pull in your own coding-agent sessions
-uv run --project agent \
-  python -m kibitz_ingest.cli --source all --limit 8
+# 2. Pull in your coding-agent sessions
+uv run --project agent python \
+  -m kibitz_ingest.cli --source all
 ```
 
 </td><td valign="top" width="50%">
@@ -151,7 +151,8 @@ docker compose up -d
 Then open <http://localhost:3000>.
 
 ```bash
-pnpm --dir web build   # production build
+# production build
+pnpm --dir web build
 pnpm --dir web lint
 ```
 
