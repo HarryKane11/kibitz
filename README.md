@@ -137,7 +137,7 @@ are not counted. Counting them would make chatty runs look accurate for free.
 **Local dev**
 
 ```bash
-# 1. Run the app — ships with 9 synthetic
+# 1. Run the app — ships with synthetic
 #    fixtures, so it is never blank
 pnpm --dir web install
 pnpm --dir web dev
@@ -145,6 +145,14 @@ pnpm --dir web dev
 # 2. Pull in your coding-agent sessions
 uv run --project agent python \
   -m kibitz_ingest.cli --source all
+```
+
+Want the exact dataset in the screenshots
+above? Copy the shipped demo capture:
+
+```bash
+cp web/lib/mock/traces.demo.json \
+   web/lib/mock/traces.json
 ```
 
 </td><td valign="top" width="50%">

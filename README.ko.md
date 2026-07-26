@@ -135,7 +135,7 @@ chain  사용자 요청                       14.4K tok · 27.9초   ← 접으�
 **로컬 개발**
 
 ```bash
-# 1. 앱 — 합성 픽스처 9건이 들어 있어
+# 1. 앱 — 합성 픽스처가 들어 있어
 #    빈 화면이 아니다
 pnpm --dir web install
 pnpm --dir web dev
@@ -143,6 +143,14 @@ pnpm --dir web dev
 # 2. 내 코드 에이전트 세션을 읽어 온다
 uv run --project agent python \
   -m kibitz_ingest.cli --source all
+```
+
+위 스크린샷과 똑같은 데이터로 보려면
+동봉된 데모 캐프처를 복사하면 된다:
+
+```bash
+cp web/lib/mock/traces.demo.json \
+   web/lib/mock/traces.json
 ```
 
 </td><td valign="top" width="50%">
