@@ -127,14 +127,14 @@ chain  사용자 요청                       14.4K tok · 27.9초   ← 접으�
 **로컬 개발**
 
 ```bash
-# 1. 앱 (합성 픽스처 9건이 들어 있어
-#    빈 화면이 아니다)
+# 1. 앱 — 합성 픽스처 9건이 들어 있어
+#    빈 화면이 아니다
 pnpm --dir web install
 pnpm --dir web dev
 
 # 2. 내 코드 에이전트 세션을 읽어 온다
-uv run --project agent \
-  python -m kibitz_ingest.cli --source all --limit 8
+uv run --project agent python \
+  -m kibitz_ingest.cli --source all
 ```
 
 </td><td valign="top" width="50%">
@@ -149,7 +149,8 @@ docker compose up -d
 <http://localhost:3000> 을 연다.
 
 ```bash
-pnpm --dir web build   # 프로덕션 빌드
+# 프로덕션 빌드
+pnpm --dir web build
 pnpm --dir web lint
 ```
 
