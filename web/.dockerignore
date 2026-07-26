@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+# 실제 세션 데이터는 이미지에 굽지 않는다 — 컨테이너를 배포하면 그대로 나간다.
+lib/mock/traces.json
+**/__pycache__
+.DS_Store

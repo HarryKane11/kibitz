@@ -1,0 +1,70 @@
+# Kibitz 셀프호스팅.
+#
+#   docker compose up -d                    웹만
+#   docker compose --profile ollama up -d    로컬 모델까지 (BYOK 없이 분석)
+#
+# 트레이스는 **이미지에 굽지 않고** 별도 named volume에 저장한다. 컨테이너를 교체해도
+# SDK·HTTP로 수집한 데이터가 남고, 이미지 레이어에 프롬프트와 파일 경로가 섞이지 않는다.
+
+name: kibitz
+
+services:
+  web:
+    build:
+      context: ./web
+      target: runner
+    image: kibitz/web:local
+    restart: unless-stopped
+    ports:
+      - "${KIBITZ_PORT:-3000}:3000"
+    environment:
+      # 설치본이므로 `/` 는 대시보드다 (기본 0). 익명 방문자에게 열린 URL 이면 1 로
+      # 바꾸세요 — 첫 화면이 랜딩이 되고, 붙여 넣은 키·토큰 없는 수집·서버 CLI 계정이
+      # 함께 잠깁니다 (docs/security.md).
+      KIBITZ_PUBLIC_SITE: ${KIBITZ_PUBLIC_SITE:-0}
+      # 분석 제공자 키. 없으면 분석 기능만 꺼지고 나머지는 그대로 돕니다.
+      # 값은 여기 적지 말고 `.env` 에 둡니다 (.gitignore 됨).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # 호스트 CLI 계정 위임은 기본 이미지에 CLI/credential이 없으므로 기본 비활성.
+      KIBITZ_ALLOW_LOCAL_CODE_AGENTS: ${KIBITZ_ALLOW_LOCAL_CODE_AGENTS:-0}
+      KIBITZ_CLAUDE_BIN: ${KIBITZ_CLAUDE_BIN:-}
+      KIBITZ_CODEX_BIN: ${KIBITZ_CODEX_BIN:-}
+      # compose 네트워크 안에서 ollama 를 부르는 주소. 호스트의 ollama 를 쓰려면
+      # http://host.docker.internal:11434 로 바꿉니다.
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      KIBITZ_INGEST_TOKEN: ${KIBITZ_INGEST_TOKEN:-}
+      KIBITZ_READ_TOKEN: ${KIBITZ_READ_TOKEN:-}
+      KIBITZ_PROJECT_TOKENS: ${KIBITZ_PROJECT_TOKENS:-}
+      KIBITZ_DATA_DIR: /data/traces
+      KIBITZ_RESOURCE_DIR: /data/resources
+    volumes:
+      # Trace와 평가 resource는 컨테이너 교체 뒤에도 함께 남는다.
+      - kibitz-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 4s
+      start_period: 15s
+      retries: 3
+
+  # 로컬 모델. 프로파일에 넣어 두었으니 기본으로는 뜨지 않는다 —
+  # 분석을 안 쓰는 사람에게 몇 GB짜리 컨테이너를 강요하지 않는다.
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+
+volumes:
+  kibitz-data:
+  ollama-models:

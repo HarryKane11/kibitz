@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kibitz — Agent Trace</title>
+<style>
+/* ══ 색 규율 ═══════════════════════════════════════════════════
+   무채색이 기본이다. 색은 "주의가 필요한 것"에만 쓴다.
+   총 3색: accent(선택) · warn(비효율) · crit(오류).
+   성공·사람개입은 색을 쓰지 않는다 — Vercel은 success/warning을
+   회색(#8f8f8f)으로 두고 danger만 색을 준다. 그 규율을 따른다.
+   ═════════════════════════════════════════════════════════════ */
+:root{
+  --ink-900:#0A0B0D; --ink-800:#0F1114; --ink-750:#131519;
+  --ink-700:#16181D; --ink-600:#1D2027;
+  --line-subtle:rgba(255,255,255,.06); --line:rgba(255,255,255,.10); --line-strong:rgba(255,255,255,.16);
+  --text:#F2F4F7; --text-2:#9BA3AF; --text-3:#646C78;
+  --neutral:#4C5561;      /* 정상 진행 — 무채색 */
+  --neutral-dim:#2C323A;  /* 사람 대기 — 더 낮게 */
+  --accent:#6FC7FF;       /* 선택·포커스 전용. 상태가 아니다 */
+  --warn:#D9A441;         /* 비효율 — 결과는 얻었으나 낭비했다 */
+  --crit:#E5484D;         /* 오류 — 결과가 틀렸다 */
+  --sans:ui-sans-serif,-apple-system,"SF Pro Display","Inter Variable",Inter,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --rad-btn:8px; --rad-card:12px; --rad-input:6px;  /* Superhuman 반경 체계 */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--ink-900);color:var(--text);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.wrap{max-width:1440px;margin:0 auto;padding:0 32px}
+
+.topbar{height:52px;display:flex;align-items:center;
+  border-bottom:1px solid var(--line-subtle);position:sticky;top:0;z-index:60;
+  background:rgba(10,11,13,.88);backdrop-filter:blur(12px)}
+.topbar .wrap{display:flex;align-items:center;gap:14px;width:100%}
+.logo{font-size:15px;font-weight:600;letter-spacing:-.3px;display:flex;align-items:center;gap:7px}
+.logo .mark{width:15px;height:15px;border-radius:4px;background:var(--text);
+  display:block;opacity:.9}
+.crumb{color:var(--text-3);font-size:13px}
+.crumb b{color:var(--text-2);font-weight:500}
+.spacer{flex:1}
+.kbd{font-family:var(--mono);font-size:10.5px;color:var(--text-3);
+  border:1px solid var(--line);border-radius:4px;padding:2px 6px}
+
+/* ── run header ── */
+.runhead{padding:34px 0 24px;display:flex;gap:44px;align-items:flex-start;flex-wrap:wrap}
+.runhead .left{flex:1;min-width:340px}
+.overline{font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:12px}
+h1{font-size:38px;font-weight:600;letter-spacing:-1.1px;line-height:1.12}
+h1 .dim{color:var(--text-2)}
+.runmeta{margin-top:15px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.chip{font-size:12px;font-weight:500;color:var(--text-2);border:1px solid var(--line);
+  border-radius:999px;padding:3px 10px}
+.chip.mono{font-family:var(--mono);font-size:11.5px}
+
+.scorecard{display:flex;gap:30px;padding-top:4px}
+.score .n{font-size:31px;font-weight:600;letter-spacing:-.8px;line-height:1;color:var(--text)}
+.score .n.bad{color:var(--crit)} .score .n.mut{color:var(--text-2)}
+.score .l{font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--text-3);margin-top:8px}
+/* 국면별 정확도 — lichess 오프닝/미들/엔드의 이식 */
+.phases{display:flex;gap:18px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line-subtle)}
+.ph{font-size:12px;color:var(--text-3)}
+.ph b{display:block;font-size:15px;font-weight:600;color:var(--text-2);margin-bottom:3px}
+.ph.low b{color:var(--crit)}
+
+/* ── ribbon ── */
+.ribbonzone{border-top:1px solid var(--line-subtle);border-bottom:1px solid var(--line-subtle);
+  background:var(--ink-750);padding:19px 0 13px}
+.ribbonhead{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.ribbonhead h2{font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--text-2)}
+.ribbonhead p{font-size:12px;color:var(--text-3)}
+.markers{height:10px;position:relative;margin-bottom:3px}
+.marker{position:absolute;top:0;width:0;height:0;border-left:4px solid transparent;
+  border-right:4px solid transparent;border-top:6px solid var(--crit);
+  transform:translateX(-4px);cursor:pointer}
+.marker.w{border-top-color:var(--warn)}
+.marker:hover{opacity:.6}
+.track{display:flex;gap:2px;height:40px}
+.cell{position:relative;border-radius:3px;cursor:pointer;overflow:hidden;background:var(--ink-600)}
+.cell i{position:absolute;inset:0;display:block;opacity:.9;transition:opacity .12s}
+.cell i::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(0,0,0,.05))}
+.cell:hover i{opacity:1}
+.cell.sel{box-shadow:0 0 0 2px var(--accent);z-index:2}
+.cell.dim i{opacity:.32}
+.cell.wait::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(-45deg,transparent 0 4px,rgba(255,255,255,.09) 4px 5px)}
+.curve{margin-top:5px;height:40px;width:100%;display:block}
+.axis{display:flex;justify-content:space-between;margin-top:7px;font-size:10.5px;color:var(--text-3)}
+
+/* ── lens + filter ── */
+.bar{display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--line-subtle);flex-wrap:wrap}
+.lenses{display:flex;gap:2px}
+.lens{padding:13px 14px;font-size:13.5px;font-weight:500;color:var(--text-3);
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .12s}
+.lens:hover{color:var(--text-2)}
+.lens.on{color:var(--text);border-bottom-color:var(--accent)}
+.filters{margin-left:auto;display:flex;gap:6px;padding:8px 0}
+.fp{font-size:12px;font-weight:500;color:var(--text-3);border:1px solid var(--line);
+  border-radius:999px;padding:4px 11px;transition:all .12s}
+.fp:hover{color:var(--text-2);border-color:var(--line-strong)}
+.fp.on{color:var(--ink-900);background:var(--text);border-color:var(--text)}
+
+/* ── grid ── */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:40px;align-items:start;padding:24px 0 90px}
+@media(max-width:1060px){.grid{grid-template-columns:1fr}.evidence{position:static!important}}
+.narr{max-width:760px}
+.phasedv{display:flex;align-items:center;gap:11px;margin:24px 0 10px;font-size:11px;
+  font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3)}
+.phasedv::after{content:"";flex:1;height:1px;background:var(--line-subtle)}
+.phasedv:first-child{margin-top:0}
+
+/* ── decision card ── */
+.card{display:grid;grid-template-columns:24px 1fr;gap:12px;padding:10px 12px 10px 8px;
+  border-radius:var(--rad-input);cursor:pointer;position:relative;transition:background .12s}
+.card:hover{background:rgba(255,255,255,.025)}
+.card.sel{background:var(--ink-600)}
+.card.sel::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:2px;
+  border-radius:2px;background:var(--accent)}
+.gutter{font-size:12px;line-height:22px;text-align:center;user-select:none;color:var(--text-3)}
+.gutter.w{color:var(--warn)} .gutter.c{color:var(--crit)}
+.ct{font-size:16px;font-weight:500;letter-spacing:-.1px;line-height:1.4;display:flex;gap:12px;align-items:baseline}
+.ct .txt{flex:1}
+.ct .meta{font-size:11.5px;font-weight:500;color:var(--text-3);white-space:nowrap;display:flex;gap:9px;flex-shrink:0}
+.call{margin-top:5px;font-family:var(--mono);font-size:12.5px;color:var(--text-2);
+  display:flex;gap:9px;align-items:center;flex-wrap:wrap;line-height:1.5}
+.res{font-size:11px;font-family:var(--sans);font-weight:500;border-radius:4px;padding:1px 7px;
+  background:rgba(255,255,255,.06);color:var(--text-2)}
+.res.w{background:rgba(217,164,65,.14);color:var(--warn)}
+.res.c{background:rgba(229,72,77,.14);color:var(--crit)}
+.said{margin-top:6px;font-size:13.5px;color:var(--text-2);line-height:1.6}
+.exp{margin-left:auto;font-size:11px;color:var(--text-3);flex-shrink:0}
+.raw{margin-top:9px;font-family:var(--mono);font-size:11.5px;line-height:1.62;color:var(--text-2);
+  background:var(--ink-800);border:1px solid var(--line-subtle);border-radius:var(--rad-input);
+  padding:11px 13px;white-space:pre-wrap;overflow-x:auto}
+.raw .k{color:var(--text)} .raw .s{color:var(--text-2)} .raw .n{color:var(--accent)}
+
+/* ── 판정 + 반사실 ── */
+.crit{margin:6px 0 8px 36px;border-left:2px solid var(--crit);border-radius:0 var(--rad-input) var(--rad-input) 0;
+  background:rgba(229,72,77,.055);padding:12px 15px}
+.crit.w{border-left-color:var(--warn);background:rgba(217,164,65,.055)}
+.crit .vd{font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--crit);margin-bottom:6px}
+.crit.w .vd{color:var(--warn)}
+.crit h4{font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:6px}
+.crit p{font-size:13px;color:var(--text-2);line-height:1.62}
+/* 반사실 — "대신 이렇게 했어야 했다". 이게 없으면 Langfuse와 같다 */
+.cf{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-subtle)}
+.cf .lb{font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:6px}
+.cf .path{font-family:var(--mono);font-size:12px;color:var(--text);line-height:1.6}
+.cf .save{margin-top:8px;display:flex;gap:16px;flex-wrap:wrap}
+.cf .save span{font-size:12px;color:var(--text-2)}
+.cf .save b{color:var(--text);font-weight:600}
+.crit .jump{margin-top:10px;font-size:11.5px;font-weight:500;color:var(--text-2);
+  border:1px solid var(--line);border-radius:var(--rad-input);padding:3px 9px}
+.crit .jump:hover{color:var(--text);border-color:var(--line-strong)}
+
+/* ── evidence ── */
+.evidence{position:sticky;top:72px;border:1px solid var(--line);border-radius:var(--rad-card);
+  background:var(--ink-800);overflow:hidden}
+.ev-h{padding:15px 17px 13px;border-bottom:1px solid var(--line-subtle)}
+.ev-h .ol{font-size:10.5px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:7px;display:flex;justify-content:space-between}
+.ev-h h3{font-size:15.5px;font-weight:500;letter-spacing:-.1px;line-height:1.42}
+.ev-b{padding:15px 17px 19px;max-height:calc(100vh - 200px);overflow-y:auto}
+.sec{margin-bottom:19px}.sec:last-child{margin-bottom:0}
+.sec .lbl{font-size:10.5px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:8px}
+.sec .val{font-family:var(--mono);font-size:12px;line-height:1.62;color:var(--text-2);
+  background:var(--ink-750);border:1px solid var(--line-subtle);border-radius:var(--rad-input);
+  padding:10px 12px;white-space:pre-wrap;word-break:break-word}
+.kv{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line-subtle)}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--text-3)} .kv .v{color:var(--text-2);font-family:var(--mono);font-size:12px}
+.kv .v.bad{color:var(--crit)}
+/* X-ray — 무채색 계단, 문제 구간만 색 */
+.xray{display:flex;height:24px;border-radius:5px;overflow:hidden;gap:1.5px;margin-bottom:11px}
+.xray span{display:block}
+.xleg{display:flex;flex-direction:column;gap:6px}
+.xrow{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+.xrow .sw{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.xrow .pc{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--text-3)}
+.xrow.hot{color:var(--text)} .xrow.hot .pc{color:var(--warn)}
+.xnote{margin-top:11px;font-size:12px;line-height:1.6;color:var(--text-2);
+  background:rgba(217,164,65,.055);border-left:2px solid var(--warn);
+  border-radius:0 var(--rad-input) var(--rad-input) 0;padding:9px 12px}
+.judge{margin-top:12px;font-size:11px;color:var(--text-3);line-height:1.5}
+
+#tip{position:fixed;z-index:100;pointer-events:none;opacity:0;transition:opacity .1s;
+  background:var(--ink-700);border:1px solid var(--line);border-radius:var(--rad-input);
+  padding:9px 12px;box-shadow:0 8px 24px rgba(0,0,0,.55);max-width:280px}
+#tip .t{font-size:12.5px;font-weight:500;line-height:1.4}
+#tip .m{font-size:11px;color:var(--text-3);margin-top:5px;font-family:var(--mono)}
+.footnote{border-top:1px solid var(--line-subtle);padding:18px 0 40px;font-size:12px;
+  color:var(--text-3);line-height:1.7}
+.footnote b{color:var(--text-2);font-weight:500}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="wrap">
+  <div class="logo"><span class="mark"></span>Kibitz</div>
+  <div class="crumb">braincrew / <b>sales-reporter</b> / <span style="font-family:var(--mono);font-size:12px">run_8f3a21</span></div>
+  <div class="spacer"></div>
+  <span class="kbd">← →</span><span style="font-size:11.5px;color:var(--text-3)">턴 이동</span>
+</div></div>
+
+<div class="wrap">
+  <div class="runhead">
+    <div class="left">
+      <div class="overline">에이전트 실행 기록</div>
+      <h1>3분기 매출을 정리해<span class="dim"> #sales 채널에 올렸다</span></h1>
+      <div class="runmeta">
+        <span class="chip">14턴</span><span class="chip">48.2초</span><span class="chip">$0.184</span>
+        <span class="chip">사람 개입 1회</span><span class="chip mono">claude-opus-5</span>
+      </div>
+    </div>
+    <div>
+      <div class="scorecard">
+        <div class="score"><div class="n">71%</div><div class="l">정확도</div></div>
+        <div class="score"><div class="n bad">2</div><div class="l">오류</div></div>
+        <div class="score"><div class="n mut">2</div><div class="l">비효율</div></div>
+        <div class="score"><div class="n mut">31%</div><div class="l">낭비 토큰</div></div>
+      </div>
+      <div class="phases">
+        <div class="ph"><b>100%</b>계획</div>
+        <div class="ph low"><b>60%</b>수집</div>
+        <div class="ph low"><b>33%</b>추론</div>
+        <div class="ph"><b>100%</b>전달</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ribbonzone"><div class="wrap">
+  <div class="ribbonhead"><h2>Run Ribbon</h2><p id="lensdesc">셀 = 턴 · 폭 = 소요시간 · 아래 곡선 = 진행도. 정상은 무채색, 색이 있는 곳만 보면 됩니다</p></div>
+  <div class="markers" id="markers"></div>
+  <div class="track" id="track"></div>
+  <svg class="curve" id="curve" preserveAspectRatio="none"></svg>
+  <div class="axis"><span>0s</span><span>48.2s</span></div>
+</div></div>
+
+<div class="wrap">
+  <div class="bar">
+    <div class="lenses" id="lenses">
+      <button class="lens on" data-lens="judgment">판정</button>
+      <button class="lens" data-lens="latency">지연</button>
+      <button class="lens" data-lens="cost">비용</button>
+      <button class="lens" data-lens="context">컨텍스트</button>
+    </div>
+    <div class="filters" id="filters">
+      <button class="fp on" data-f="all">전체</button>
+      <button class="fp" data-f="bad">문제만</button>
+      <button class="fp" data-f="waste">낭비된 턴</button>
+      <button class="fp" data-f="human">사람 개입</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="narr" id="narr"></div>
+    <aside class="evidence">
+      <div class="ev-h"><div class="ol"><span>선택된 결정</span><span id="evTurn"></span></div><h3 id="evTitle">—</h3></div>
+      <div class="ev-b" id="evBody"></div>
+    </aside>
+  </div>
+
+  <div class="footnote">
+    프로토타입 · 목 데이터. 색은 3개뿐입니다 — <b>선택</b>, <b>비효율</b>, <b>오류</b>. 정상 진행과 사람 개입은 색을 쓰지 않습니다.<br>
+    리본에 마우스를 올리거나 <span class="kbd">←</span> <span class="kbd">→</span> 로 턴을 넘겨보세요.
+  </div>
+</div>
+
+<div id="tip"><div class="t"></div><div class="m"></div></div>
+
+<script>
+const V={good:'#4C5561',waste:'#D9A441',error:'#E5484D',human:'#2C323A'};
+const VLABEL={waste:'비효율',error:'오류'};
+
+const T=[
+{p:'계획',v:'good',g:'●',t:'사용자 요청',said:'3분기 매출 정리해서 #sales 채널에 올려줘',ms:0,tok:38,cost:0,prog:.05,
+ ctx:[['시스템',6],['스킬 정의',11],['툴 정의',47],['대화 히스토리',28],['검색 결과',8]],
+ prompt:'You are a sales reporting agent.',out:'—'},
+
+{p:'계획',v:'good',g:'◆',t:'세 단계로 나눈다 — 리포트 찾기, 수치 합산, 슬랙 게시',ms:2100,tok:1240,cost:.006,prog:.14,
+ call:'plan()',res:'3 steps',
+ ctx:[['시스템',6],['스킬 정의',11],['툴 정의',47],['대화 히스토리',28],['검색 결과',8]],
+ prompt:'요청을 실행 가능한 단계로 분해하라.',
+ out:'1. 3분기 매출 리포트 검색\n2. 수치 합산\n3. #sales 채널 게시'},
+
+{p:'수집',v:'waste',g:'◆',t:'카탈로그에서 3분기 매출을 찾는다',ms:1800,tok:920,cost:.004,prog:.11,
+ call:'search(q="3분기 매출")',res:'0건',
+ verdict:{k:'검색어를 확인 없이 던졌다',
+  why:'카탈로그의 명명 규칙을 조회하지 않고 사람이 쓰는 표현을 그대로 넣었다. 한 번의 빈손은 탐색으로 볼 수 있으나, 스키마를 먼저 봤다면 피할 수 있었다.',
+  cf:'list_schema() → search(q="매출 2026 Q3")',
+  save:[['1턴',''],['1.8초',''],['920토큰','']]},
+ ctx:[['시스템',6],['스킬 정의',10],['툴 정의',46],['대화 히스토리',30],['검색 결과',8]],
+ prompt:'search(q="3분기 매출")',out:'{ "results": [], "total": 0 }'},
+
+{p:'수집',v:'error',g:'◆',t:'다시 찾아본다',ms:1750,tok:910,cost:.004,prog:.08,
+ call:'search(q="3분기 매출")',res:'0건',
+ verdict:{k:'같은 도구를 같은 인자로 다시 불렀다',
+  why:'직전 호출과 도구·인자가 완전히 동일하다. 결과가 바뀔 이유가 없었고, 실제로 바뀌지 않았다. 이건 탐색이 아니라 정지 상태다.',
+  cf:'직전 결과가 0건 → 쿼리 재작성 또는 스키마 조회로 전환',
+  save:[['1턴',''],['1.75초',''],['910토큰','']]},
+ ctx:[['시스템',6],['스킬 정의',10],['툴 정의',46],['대화 히스토리',30],['검색 결과',8]],
+ prompt:'search(q="3분기 매출")',out:'{ "results": [], "total": 0 }'},
+
+{p:'수집',v:'good',g:'◆',t:'쿼리가 너무 좁았다. 표기를 바꿔 다시 찾는다',ms:2050,tok:1010,cost:.005,prog:.30,
+ call:'search(q="매출 2026 Q3")',res:'3건',
+ ctx:[['시스템',6],['스킬 정의',10],['툴 정의',44],['대화 히스토리',32],['검색 결과',8]],
+ prompt:'search(q="매출 2026 Q3")',
+ out:'{ "results": [\n  {"id":"rpt_9f21","title":"2026 Q3 매출 — 국내"},\n  {"id":"rpt_9f22","title":"2026 Q3 매출 — 해외"},\n  {"id":"rpt_9f23","title":"2026 Q3 매출 — 파트너"}\n], "total": 3 }'},
+
+{p:'수집',v:'good',g:'◆',t:'국내 리포트를 읽는다',ms:3200,tok:4820,cost:.021,prog:.42,
+ call:'get_report(id="rpt_9f21")',res:'표 42행',
+ ctx:[['시스템',5],['스킬 정의',9],['툴 정의',38],['대화 히스토리',30],['검색 결과',18]],
+ prompt:'get_report(id="rpt_9f21")',out:'국내 매출 42행 · 합계 ₩4,120,000,000'},
+
+{p:'수집',v:'good',g:'◆',t:'해외 리포트를 읽는다',ms:3050,tok:4610,cost:.020,prog:.52,
+ call:'get_report(id="rpt_9f22")',res:'표 38행',
+ ctx:[['시스템',5],['스킬 정의',8],['툴 정의',33],['대화 히스토리',31],['검색 결과',23]],
+ prompt:'get_report(id="rpt_9f22")',out:'해외 매출 38행 · 합계 ₩2,780,000,000'},
+
+{p:'수집',v:'good',g:'◆',t:'파트너 리포트를 읽는다',ms:3400,tok:5100,cost:.023,prog:.60,
+ call:'get_report(id="rpt_9f23")',res:'표 29행',
+ ctx:[['시스템',4],['스킬 정의',7],['툴 정의',29],['대화 히스토리',33],['검색 결과',27]],
+ prompt:'get_report(id="rpt_9f23")',out:'파트너 매출 29행 · 합계 ₩1,340,000,000'},
+
+{p:'추론',v:'error',g:'◆',t:'세 리포트를 하나로 합친다',ms:4100,tok:7900,cost:.034,prog:.48,
+ call:'summarize(reports=3)',res:'요약 생성',
+ verdict:{k:'원래 지시가 컨텍스트에서 밀려났다',
+  why:'리포트 3건이 들어오며 대화 히스토리가 잘렸다. 사용자 원 지시 중 "#sales 채널에 올려줘"가 이 시점에 컨텍스트에서 사라졌다. 12번 턴의 누락이 여기서 시작된다.',
+  cf:'원 지시를 시스템 영역에 고정(pin) → 히스토리 압축 대상에서 제외',
+  save:[['2턴',''],['14.0초','사람 대기 포함'],['832토큰','']]},
+ ctx:[['시스템',4],['스킬 정의',6],['툴 정의',26],['대화 히스토리',22],['검색 결과',42]],
+ prompt:'세 리포트를 하나의 요약으로 합쳐라.',out:'국내·해외·파트너 3개 채널의 Q3 매출을 통합.'},
+
+{p:'추론',v:'good',g:'◆',t:'합계를 계산한다',ms:1900,tok:1400,cost:.006,prog:.58,
+ call:'compute(op="sum")',res:'₩8.24B',
+ ctx:[['시스템',4],['스킬 정의',6],['툴 정의',26],['대화 히스토리',22],['검색 결과',42]],
+ prompt:'compute(op="sum")',out:'4,120,000,000 + 2,780,000,000 + 1,340,000,000 = 8,240,000,000'},
+
+{p:'추론',v:'error',g:'◆',t:'요약문을 작성한다',ms:3600,tok:2200,cost:.011,prog:.34,
+ call:'draft()',res:'초안 완성',
+ verdict:{k:'근거 없는 수치를 만들어냈다',
+  why:'초안에 "전년 동기 대비 12% 성장"이 들어갔다. 이 런에서 조회한 어떤 리포트에도 전년 데이터가 없다. 모델의 자기 확신은 0.91로 이 런에서 가장 높았다 — 확신도는 안전 신호가 아니다.',
+  cf:'수치 주장마다 출처 span을 강제 연결 → 미연결 주장은 초안에서 제거',
+  save:[['0턴','턴은 안 줄지만'],['신뢰','런 전체가 무효화될 뻔했다']]},
+ ctx:[['시스템',4],['스킬 정의',6],['툴 정의',26],['대화 히스토리',22],['검색 결과',42]],
+ prompt:'합계를 바탕으로 사용자용 요약을 작성하라.',
+ out:'2026년 3분기 총매출은 ₩8.24B입니다.\n국내 ₩4.12B, 해외 ₩2.78B, 파트너 ₩1.34B.\n전년 동기 대비 12% 성장했습니다.   ← 출처 없음'},
+
+{p:'전달',v:'good',g:'✓',t:'사용자에게 답변을 반환한다',ms:1200,tok:640,cost:.003,prog:.40,
+ call:'respond()',res:'전송',
+ ctx:[['시스템',4],['스킬 정의',6],['툴 정의',26],['대화 히스토리',22],['검색 결과',42]],
+ prompt:'—',out:'2026년 3분기 총매출은 ₩8.24B입니다. …'},
+
+{p:'전달',v:'human',g:'⚑',t:'사람이 개입했다 — "슬랙에 안 올렸잖아"',ms:11800,tok:52,cost:0,prog:.40,
+ call:'human_interrupt()',res:'수정 요청',
+ ctx:[['시스템',4],['스킬 정의',6],['툴 정의',26],['대화 히스토리',22],['검색 결과',42]],
+ prompt:'—',out:'사용자: "슬랙에 안 올렸잖아"'},
+
+{p:'전달',v:'good',g:'✓',t:'#sales 채널에 게시한다',ms:2200,tok:780,cost:.004,prog:.92,
+ call:'slack.post(channel="#sales")',res:'게시됨',
+ ctx:[['시스템',4],['스킬 정의',6],['툴 정의',26],['대화 히스토리',24],['검색 결과',40]],
+ prompt:'slack.post(channel="#sales", text=…)',out:'{ "ok": true, "ts": "1769..." }'}
+];
+
+let sel=1, lens='judgment', filt='all';
+const $=s=>document.querySelector(s), tip=$('#tip');
+const shown=()=>T.map((d,i)=>i).filter(i=>{const v=T[i].v;
+  if(filt==='all')return true; if(filt==='bad')return v==='error';
+  if(filt==='waste')return v==='waste'||v==='error'; if(filt==='human')return v==='human';});
+
+function cellColor(d){
+  if(lens==='judgment') return V[d.v];
+  const heat=(x,max)=>{const r=Math.min(1,x/max);   /* 무채색 → 액센트 계단 */
+    return `rgb(${Math.round(44+r*67)},${Math.round(50+r*149)},${Math.round(58+r*197)})`;};
+  if(lens==='latency') return heat(d.ms,4200);
+  if(lens==='cost')    return heat(d.cost,.035);
+  return heat(d.ctx.find(c=>c[0]==='툴 정의')[1],50);
+}
+const LD={
+  judgment:'셀 = 턴 · 폭 = 소요시간 · 아래 곡선 = 진행도. 정상은 무채색, 색이 있는 곳만 보면 됩니다',
+  latency :'밝을수록 오래 걸린 턴입니다. 가장 긴 구간은 사람이 답을 기다린 11.8초입니다',
+  cost    :'밝을수록 비싼 턴입니다. 리포트 3건 읽기가 전체 비용의 35%를 씁니다',
+  context :'밝을수록 툴 정의가 컨텍스트를 많이 먹은 턴입니다. 초반 47%까지 올라갑니다'
+};
+
+function ribbon(){
+  const tr=$('#track'), mk=$('#markers'), tot=T.reduce((a,d)=>a+Math.max(d.ms,700),0);
+  tr.innerHTML=''; mk.innerHTML='';
+  T.forEach((d,i)=>{
+    const w=Math.max(d.ms,700)/tot*100;
+    const b=document.createElement('button');
+    b.className='cell'+(i===sel?' sel':'')+(d.v==='human'?' wait':'');
+    b.style.flex=`0 0 ${w}%`;
+    b.innerHTML=`<i style="background:${cellColor(d)}"></i>`;
+    b.onmouseenter=e=>{showTip(e,d,i);
+      document.querySelectorAll('.cell').forEach((c,j)=>{if(j!==i)c.classList.add('dim')});
+      const el=document.getElementById('c'+i); if(el)el.style.background='rgba(255,255,255,.05)';};
+    b.onmousemove=e=>{tip.style.left=Math.min(e.clientX+14,innerWidth-300)+'px';tip.style.top=(e.clientY+16)+'px';};
+    b.onmouseleave=()=>{tip.style.opacity=0;
+      document.querySelectorAll('.cell').forEach(c=>c.classList.remove('dim'));
+      const el=document.getElementById('c'+i); if(el&&i!==sel)el.style.background='';};
+    b.onclick=()=>pick(i,true); tr.appendChild(b);
+    if(d.verdict){
+      const m=document.createElement('div'); m.className='marker'+(d.v==='waste'?' w':'');
+      let acc=0; for(let j=0;j<i;j++)acc+=Math.max(T[j].ms,700)/tot*100;
+      m.style.left=`${acc+w/2}%`; m.onclick=()=>pick(i,true); mk.appendChild(m);
+    }
+  });
+  curve();
+}
+function showTip(e,d,i){
+  tip.querySelector('.t').textContent=d.t;
+  tip.querySelector('.m').textContent=`턴 ${i} · ${(d.ms/1000).toFixed(1)}s · ${d.tok.toLocaleString()} tok`
+    +(VLABEL[d.v]?' · '+VLABEL[d.v]:'');
+  tip.style.opacity=1;
+  tip.style.left=Math.min(e.clientX+14,innerWidth-300)+'px'; tip.style.top=(e.clientY+16)+'px';
+}
+function curve(){
+  const svg=$('#curve'), W=1000,H=40; svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const tot=T.reduce((a,d)=>a+Math.max(d.ms,700),0); let acc=0; const pts=[];
+  T.forEach(d=>{const w=Math.max(d.ms,700)/tot*W;
+    pts.push([acc+w/2,H-4-d.prog*(H-9)]); acc+=w;});
+  const path=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  svg.innerHTML=`<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6FC7FF" stop-opacity=".22"/>
+      <stop offset="100%" stop-color="#6FC7FF" stop-opacity="0"/></linearGradient></defs>
+    <path d="${path} L ${W} ${H} L 0 ${H} Z" fill="url(#g)"/>
+    <path d="${path}" fill="none" stroke="#6FC7FF" stroke-width="1.3" stroke-opacity=".8"/>`
+    + T.map((d,i)=>d.verdict?`<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="2.8"
+        fill="${d.v==='waste'?'#D9A441':'#E5484D'}"/>`:'').join('');
+}
+
+function narrative(){
+  const n=$('#narr'); n.innerHTML=''; let phase=null; const vis=shown();
+  vis.forEach(i=>{
+    const d=T[i];
+    if(d.p!==phase){phase=d.p;
+      const h=document.createElement('div'); h.className='phasedv'; h.textContent=phase; n.appendChild(h);}
+    const gc=d.v==='error'?' c':d.v==='waste'?' w':'';
+    const rc=d.v==='error'?' c':d.v==='waste'?' w':'';
+    const c=document.createElement('div');
+    c.className='card'+(i===sel?' sel':''); c.id='c'+i;
+    c.innerHTML=`<div class="gutter${gc}">${d.g}</div><div>
+      <div class="ct"><span class="txt">${d.t}</span><span class="meta">
+        ${d.ms?`<span>${(d.ms/1000).toFixed(1)}s</span>`:''}
+        ${d.tok?`<span>${d.tok.toLocaleString()}</span>`:''}
+        ${d.cost?`<span>$${d.cost.toFixed(3)}</span>`:''}</span></div>
+      ${d.call?`<div class="call"><span>${d.call}</span>
+        <span class="res${rc}">${d.res}</span>
+        <span class="exp">${i===sel?'▾ 접기':'▸ 원문'}</span></div>`
+       :`<div class="said">“${d.said}”</div>`}
+      ${i===sel&&d.out?`<div class="raw">${fmt(d.out)}</div>`:''}</div>`;
+    c.onclick=()=>pick(i,false); n.appendChild(c);
+    if(d.verdict){
+      const b=document.createElement('div'); b.className='crit'+(d.v==='waste'?' w':'');
+      b.innerHTML=`<div class="vd">${VLABEL[d.v]}</div>
+        <h4>${d.verdict.k}</h4><p>${d.verdict.why}</p>
+        <div class="cf"><div class="lb">대신 이렇게 했어야 했다</div>
+          <div class="path">${d.verdict.cf}</div>
+          <div class="save">${d.verdict.save.map(s=>
+            `<span><b>${s[0]}</b> 절약${s[1]?' · '+s[1]:''}</span>`).join('')}</div></div>
+        <button class="jump">${i}번 턴 보기</button>`;
+      b.querySelector('.jump').onclick=e=>{e.stopPropagation();pick(i,true);};
+      n.appendChild(b);
+    }
+  });
+  if(!vis.length) n.innerHTML='<div style="color:var(--text-3);font-size:13px;padding:20px 0">해당하는 턴이 없습니다.</div>';
+}
+const fmt=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/"([^"]*)"(\s*:)/g,'"<span class="k">$1</span>"$2')
+  .replace(/\b(\d[\d,\.]*)\b/g,'<span class="n">$1</span>');
+
+function evidence(){
+  const d=T[sel], tools=d.ctx.find(c=>c[0]==='툴 정의')[1];
+  const G=['#31363E','#3C424B','#D9A441','#4E5661','#5C6570'];   /* 문제 구간만 색 */
+  $('#evTitle').textContent=d.t; $('#evTurn').textContent='턴 '+sel;
+  $('#evBody').innerHTML=`
+    <div class="sec"><div class="lbl">이 시점의 컨텍스트 창</div>
+      <div class="xray">${d.ctx.map((c,i)=>
+        `<span style="flex:0 0 ${c[1]}%;background:${i===2&&c[1]>=40?G[2]:G[i]}"></span>`).join('')}</div>
+      <div class="xleg">${d.ctx.map((c,i)=>
+        `<div class="xrow${i===2&&c[1]>=40?' hot':''}">
+          <span class="sw" style="background:${i===2&&c[1]>=40?G[2]:G[i]}"></span>${c[0]}
+          <span class="pc">${c[1]}%</span></div>`).join('')}</div>
+      ${tools>=40?`<div class="xnote">등록된 툴 41개 중 이 런에서 실제로 호출된 건 3개입니다.
+        나머지 38개 정의가 매 호출마다 컨텍스트의 ${tools}%를 먹습니다.</div>`:''}
+    </div>
+    ${d.prompt&&d.prompt!=='—'?`<div class="sec"><div class="lbl">모델에 들어간 것</div>
+      <div class="val">${fmt(d.prompt)}</div></div>`:''}
+    <div class="sec"><div class="lbl">나온 것</div><div class="val">${fmt(d.out)}</div></div>
+    <div class="sec"><div class="lbl">측정값</div>
+      <div class="kv"><span class="k">소요시간</span><span class="v">${(d.ms/1000).toFixed(2)}s</span></div>
+      <div class="kv"><span class="k">토큰</span><span class="v">${d.tok.toLocaleString()}</span></div>
+      <div class="kv"><span class="k">비용</span><span class="v">$${d.cost.toFixed(4)}</span></div>
+      <div class="kv"><span class="k">판정</span><span class="v${d.v==='error'?' bad':''}">${
+        VLABEL[d.v]||(d.v==='human'?'사람 개입':'정상')}</span></div>
+      <div class="judge">판정 모델 · kibitz-rules v0.3 (결정론 규칙 2 + LLM 판정 1)</div>
+    </div>`;
+}
+
+function pick(i,scroll){
+  sel=i; ribbon(); narrative(); evidence();
+  if(scroll){const el=document.getElementById('c'+i);
+    if(el)el.scrollIntoView({behavior:'smooth',block:'center'});}
+}
+$('#lenses').onclick=e=>{const b=e.target.closest('.lens'); if(!b)return;
+  document.querySelectorAll('.lens').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); lens=b.dataset.lens; $('#lensdesc').textContent=LD[lens]; ribbon();};
+$('#filters').onclick=e=>{const b=e.target.closest('.fp'); if(!b)return;
+  document.querySelectorAll('.fp').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); filt=b.dataset.f; narrative();};
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'&&sel<T.length-1)pick(sel+1,true);
+  if(e.key==='ArrowLeft'&&sel>0)pick(sel-1,true);});
+
+ribbon(); narrative(); evidence();
+</script>
+</body>
+</html>

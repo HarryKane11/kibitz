@@ -1,0 +1,25 @@
+[project]
+name = "kibitz"
+version = "0.1.0"
+description = "Agent observability that treats a decision, not a span, as the primary object"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=1.2.0",
+]
+
+[project.optional-dependencies]
+# LangChain 콜백 핸들러를 쓸 때만 필요하다. SDK 본체는 LangChain 을 요구하지 않는다 —
+# 안 쓰는 사람에게 설치를 강요하지 않는다.
+langchain = [
+    "langchain-core>=1.0.0",
+]
+
+[project.scripts]
+kibitz-ingest = "kibitz_ingest.cli:main"
+kibitz-langfuse-import = "kibitz_ingest.langfuse:main"
+kibitz-mcp = "kibitz_mcp.server:main"
+
+[tool.setuptools.packages.find]
+include = ["kibitz_ingest*", "kibitz_sdk*", "kibitz_mcp*"]

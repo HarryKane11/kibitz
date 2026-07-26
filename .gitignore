@@ -1,0 +1,39 @@
+# ── 실제 세션 데이터 — 절대 커밋하지 않는다 ─────────────────────────
+#
+# 인제스터가 여기에 씁니다. 프롬프트·파일 경로·프로젝트명이 그대로 들어가므로
+# 저장소에 올라가면 사내 정보가 공개됩니다. 저장소에는 `traces.sample.json`(빈 배열)
+# 만 들어가고, `pnpm dev`/`pnpm build` 가 없으면 그걸 복사해 씁니다.
+web/lib/mock/traces.json
+
+# SDK 가 실행 중에 쓰는 저장소. 같은 이유로 커밋하지 않는다.
+.kibitz/
+web/.kibitz/
+
+# ── 시크릿 ──────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── 의존성·빌드 산출물 ──────────────────────────────────────────
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Python ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ── OS·에디터 ───────────────────────────────────────────────────
+.DS_Store
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json

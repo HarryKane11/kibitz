@@ -1,0 +1,349 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ══════════════════════════════════════════════════════════════
+   Kibitz 디자인 토큰 — 원본: ../DESIGN.md
+
+   색 규율: 무채색이 기본. 색은 "주의가 필요한 것"에만.
+   총 3색 — sky(선택·포커스) / warn(비효율) / crit(오류).
+   정상 진행과 사람 개입은 색을 쓰지 않는다.
+   근거: Vercel은 success·warning을 회색(#8f8f8f)으로 두고
+   danger만 색을 준다. Linear의 semantic 색은 단 하나다.
+   ══════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-pretendard);
+  --font-mono:
+    ui-monospace, "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas,
+    monospace;
+  --font-heading: var(--font-pretendard);
+
+  /* 표면 — 깊이는 그림자가 아니라 밝기로 만든다 */
+  --color-ink-900: var(--ink-900);
+  --color-ink-800: var(--ink-800);
+  --color-ink-750: var(--ink-750);
+  --color-ink-700: var(--ink-700);
+  --color-ink-600: var(--ink-600);
+
+  /* 텍스트 3단 */
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+
+  /* 판정 — 이 넷이 색의 전부다 */
+  --color-turn-good: var(--turn-good); /* 정상 진행 — 무채색 */
+  --color-turn-wait: var(--turn-wait); /* 사람 대기 — 더 낮게 */
+  --color-warn: var(--warn); /* 비효율 — 결과는 얻었으나 낭비 */
+  --color-crit: var(--crit); /* 오류 — 결과가 틀렸다 */
+  --color-sky: var(--sky); /* 선택·포커스 전용. 상태가 아니다 */
+  --color-brand: var(--brand); /* 브랜드의 분석 주석. 상태값에는 쓰지 않는다 */
+
+  /* 선·채움 — 전에는 `white/10` 을 직접 썼다. 그건 다크에서만 성립한다.
+     라이트에서는 흰 선이 흰 배경에 사라지므로 토큰으로 뽑아 테마마다 뒤집는다. */
+  --color-hair: var(--hair); /* 가장 옅은 구획선 */
+  --color-line: var(--line); /* 기본 경계 */
+  --color-line-2: var(--line-2); /* hover·강조 경계 */
+  --color-line-3: var(--line-3); /* 강한 hover 경계 */
+  --color-hover: var(--hover); /* 행 hover 바탕 */
+  --color-fill: var(--fill); /* 칩·메뉴 항목 바탕 */
+  --color-fill-2: var(--fill-2); /* 인디케이터·스플리터 */
+
+  /* 한글 타이포 스케일 — 본문 16px, 최소 14px.
+     12px는 라벨·캡션·타임스탬프 전용. 행간은 영문보다 넓게. */
+  --text-xs: 12px;
+  --text-xs--line-height: 1.5;
+  --text-sm: 14px;
+  --text-sm--line-height: 1.65;
+  --text-base: 16px;
+  --text-base--line-height: 1.7;
+  --text-lg: 18px;
+  --text-lg--line-height: 1.6;
+  --text-xl: 20px;
+  --text-xl--line-height: 1.5;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 1.4;
+  --text-3xl: 30px;
+  --text-3xl--line-height: 1.25;
+  --text-4xl: 38px;
+  --text-4xl--line-height: 1.12;
+
+  /* Superhuman 반경 체계 */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   테마 값
+
+   `:root` 가 라이트, `.dark` 가 다크다. 어느 쪽이 켜질지는 `<head>` 의
+   인라인 스크립트가 첫 페인트 전에 결정하므로 깜빡임이 없다.
+
+   차트 팔레트도 여기 산다 (`@theme` 이 아니라):
+   Tailwind 4 는 유틸리티가 참조하지 않는 테마 변수를 빌드에서 떨어뜨리는데,
+   이 색들은 전부 인라인 style 의 `var()` 로만 쓰이므로 스캐너에 잡히지 않는다.
+   실제로 seq 램프가 통째로 사라져 점수 매트릭스 칸이 투명하게 나왔었다.
+
+   카테고리 팔레트는 **두 표면 모두에서** 검증 스크립트를 통과한 값이다:
+     node scripts/validate_palette.js "#4C8DF6,#7C3AED,#C2298A,#12A594" \
+          --mode dark  --surface "#0F1114" --pairs all   → ALL PASS
+     node scripts/validate_palette.js "#4C8DF6,#7C3AED,#C2298A,#12A594" \
+          --mode light --surface "#FFFFFF" --pairs all   → ALL PASS
+   슬롯은 넷이 한계다 — 다섯째부터 CVD 분리가 하드 실패한다.
+   색상 순서는 고정이며 절대 순환시키지 않는다.
+
+   순차 램프는 **테마마다 방향이 뒤집힌다.** 다크에서는 어두움=낮음, 라이트에서는
+   밝음=낮음이어야 한다. 그러지 않으면 흰 배경에서 낮은 값이 가장 도드라진다.
+   두 램프 모두 OKLab L 단조성과 셀 텍스트 대비(최저 6.7:1 / 7.5:1)를 계산으로 확인했다.
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+
+  --ink-900: #ffffff;
+  --ink-800: #f7f8fa;
+  --ink-750: #f1f3f6;
+  --ink-700: #eaedf2;
+  --ink-600: #e3e8f0;
+
+  --fg: #16181d;
+  --fg-2: #4d5560;
+  --fg-3: #6b7280;
+
+  --turn-good: #aab2be;
+  --turn-wait: #d3d8e0;
+  /* 라이트에서는 상태색을 어둡게 내린다 — 흰 배경 위 amber/red 는 텍스트로 못 읽는다.
+     계산 확인: warn 5.93:1 · crit 5.88:1 · sky 5.28:1 (모두 4.5:1 통과) */
+  --warn: #8a5a00;
+  --crit: #c0272d;
+  --sky: #0b6bcb;
+  --brand: #a4432b;
+
+  --hair: rgb(0 0 0 / 8%);
+  --line: rgb(0 0 0 / 12%);
+  --line-2: rgb(0 0 0 / 20%);
+  --line-3: rgb(0 0 0 / 32%);
+  --hover: rgb(0 0 0 / 3.5%);
+  --fill: rgb(0 0 0 / 6%);
+  --fill-2: rgb(0 0 0 / 18%);
+
+  --color-cat-1: #4c8df6;
+  --color-cat-2: #7c3aed;
+  --color-cat-3: #c2298a;
+  --color-cat-4: #12a594;
+
+  /* 밝음 → 어두움 (낮음 → 높음) */
+  --color-seq-1: #dce8fc;
+  --color-seq-2: #b3cef8;
+  --color-seq-3: #7aa9f2;
+  --color-seq-4: #4c8df6;
+  --color-seq-5: #2b6ad1;
+
+  --background: var(--ink-900);
+  --foreground: var(--fg);
+  --card: var(--ink-800);
+  --card-foreground: var(--fg);
+  --popover: var(--ink-700);
+  --popover-foreground: var(--fg);
+  --primary: var(--fg);
+  --primary-foreground: var(--ink-900);
+  --secondary: var(--ink-600);
+  --secondary-foreground: var(--fg);
+  --muted: var(--ink-600);
+  --muted-foreground: var(--fg-2);
+  --accent: var(--ink-600);
+  --accent-foreground: var(--fg);
+  --destructive: var(--crit);
+  --border: var(--line);
+  --input: var(--line-2);
+  --ring: var(--sky);
+  --radius: 0.5rem;
+  --sidebar: var(--ink-800);
+  --sidebar-foreground: var(--fg);
+  --sidebar-primary: var(--fg);
+  --sidebar-primary-foreground: var(--ink-900);
+  --sidebar-accent: var(--ink-600);
+  --sidebar-accent-foreground: var(--fg);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--sky);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --ink-900: #0a0b0d;
+  --ink-800: #0f1114;
+  --ink-750: #131519;
+  --ink-700: #16181d;
+  --ink-600: #1d2027;
+
+  --fg: #f2f4f7;
+  --fg-2: #9ba3af;
+  --fg-3: #646c78;
+
+  --turn-good: #4c5561;
+  --turn-wait: #2c323a;
+  --warn: #d9a441;
+  --crit: #e5484d;
+  --sky: #6fc7ff;
+  --brand: #ff7a55;
+
+  --hair: rgb(255 255 255 / 6%);
+  --line: rgb(255 255 255 / 10%);
+  --line-2: rgb(255 255 255 / 20%);
+  --line-3: rgb(255 255 255 / 26%);
+  --hover: rgb(255 255 255 / 3%);
+  --fill: rgb(255 255 255 / 6%);
+  --fill-2: rgb(255 255 255 / 22%);
+
+  /* 어두움 → 밝음 (낮음 → 높음) */
+  --color-seq-1: #16304a;
+  --color-seq-2: #1e4a72;
+  --color-seq-3: #26669c;
+  --color-seq-4: #3183c6;
+  --color-seq-5: #4c8df6;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+    /* 숫자가 표에서 흔들리지 않게 — 트레이스는 숫자를 비교하는 화면이다 */
+    font-variant-numeric: tabular-nums;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* ── 모션 ─────────────────────────────────────────────────────
+   내장 CSS easing 은 너무 약해서 UI 가 늘어지게 느껨진다. 강한 커스텀 커브를 쓴다.
+
+   `ease-in` 은 쓰지 않는다 — 느리게 시작해서 사용자가 가장 주목하는 순간을
+   지연시킨다. ease-out 200ms 가 ease-in 200ms 보다 *빠르게 느껨진다*.
+
+   지속시간 상한은 200ms 다. 이 앱에서 애니메이션이 붙는 곳은 팝오버 하나뿐이고,
+   나머지(트리 이동·커맨드 팔레트·필터 토글)는 하루에 수십~수백 번 하는 동작이라
+   트랜지션이 도움이 아니라 지연이다. */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --dur-pop: 140ms;
+}
+
+@keyframes pop {
+  from {
+    /* scale(0) 에서 시작하지 않는다 — 현실에서 무엇도 완전히 사라졌다 나타나지 않는다 */
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@layer utilities {
+  /* 테마를 바꾸는 그 한 프레임 동안 모든 트랜지션을 끈다.
+     켜두면 전체 화면이 색을 흘리며 번지고, 그건 전환이 아니라 고장으로 보인다. */
+  .theme-switching,
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition: none !important;
+  }
+
+  .animate-pop {
+    animation: pop var(--dur-pop) var(--ease-out);
+  }
+
+  .brand-grid {
+    background-image:
+      linear-gradient(to right, var(--hair) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--hair) 1px, transparent 1px);
+    background-position: center;
+    background-size: 32px 32px;
+  }
+
+  .brand-noise {
+    background-image: url("/brand/decision-field.webp");
+    background-position: center;
+    background-size: cover;
+  }
+
+  .content-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 900px;
+  }
+
+  /* 모션을 줄이면 이동은 없애고 피드백은 남긴다 — 둘은 다른 것이다 */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-pop {
+      animation-duration: 1ms;
+    }
+    *,
+    *::before,
+    *::after {
+      transition-duration: 1ms !important;
+      animation-duration: 1ms !important;
+    }
+  }
+
+  /* 사람을 기다린 구간 — 에이전트가 일하지 않은 시간은 빗금으로 낮춘다 */
+  /* ::after 가 inset:0 이므로 배치 기준이 자기 자신이어야 한다.
+     호출부가 relative 를 빠뜨리면 줄무늬가 페이지 전체를 덮는다. */
+  .hatch {
+    position: relative;
+  }
+
+  .hatch::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent 0 4px,
+      rgb(255 255 255 / 9%) 4px 5px
+    );
+  }
+}
