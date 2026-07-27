@@ -83,13 +83,17 @@ counterfactual**을 1급 객체로 추가한다.
 | **다른 런타임** | OTLP/HTTP JSON 수신, 또는 완성된 Kibitz Run JSON `POST` |
 | **Langfuse 이전** | v4 `observations_v2` JSON·JSONL·API 응답 import |
 | **관측** | 중첩 trace, request group, session/user/tag, latency·token·추정 비용 |
+| **돌아가는 런 보기** | 끝나기 전에도 append-only span 으로 (`POST /api/live`) |
 | **진단** | 동일 호출, tool cycle, empty-result loop, cache break, context eviction, unsourced number |
 | **개선 제안** | 선택 — API key, Ollama, 또는 로그인된 Claude Code·Codex 계정 |
-| **평가 workflow** | 영속 prompt·dataset·evaluator·annotation·automation resource API |
+| **비용 귀속** | 토큰을 어디에 썼는가 — 에이전트별·작업 종류별·도구별 |
 | **운영** | atomic file write, 공유 RWX volume, project-scoped read/ingest/admin token |
 
-Prompt·dataset·evaluator·annotation queue·automation resource는 trace와 분리된 영속 저장소와
-CRUD API를 사용한다. 기본 예시는 저장된 resource가 하나도 없을 때만 보인다.
+> [!NOTE]
+> Langfuse식 resource 화면(prompt·dataset·evaluator·annotation queue·automation rule)은 **지웠다.**
+> 긴 런과 아무 상관이 없는 부분이었고, 유지하려면 아직 아무도 요구하지 않은 엔티티를 위해 두 번째
+> 영속 계층을 안고 가야 했다. 남은 것은 tracing core다. 필요하면 이슈로 말해 달라 — 엔티티 모델은
+> `lib/types.ts` 에 그대로 있다.
 
 ---
 
@@ -277,13 +281,11 @@ uv run --project agent python -m kibitz_ingest.cli --source all --limit 8
 
 ## 화면
 
-Langfuse의 엔티티 축(세션·사용자·스코어·평가자·어노테이션·데이터셋·프롬프트)과 LangSmith의 작업
-흐름(중첩 run tree·워터폴·속성 필터·automation rule·baseline 비교·playground·thread)을 같은 데이터
-위에 얹었다. `Run ↔ Trace`, `Turn ↔ Observation`.
+화면은 일곱이다. `Run ↔ Trace`, `Turn ↔ Observation`.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/media/dashboard.webp" alt="대시보드"><br><sub><b>/dashboard</b> — 비용·지연·토큰 시계열, 비용 순으로 줄 세운 실패 유형</sub></td>
+<td width="50%"><img src="docs/media/usage.webp" alt="토큰 사용량"><br><sub><b>/usage</b> — 토큰을 어디에 썼는가: 에이전트별·작업 종류별·도구별. 분류 규칙을 차트 아래에 그대로 적는다</sub></td>
 <td width="50%"><img src="docs/media/traces.webp" alt="트레이스"><br><sub><b>/traces</b> — 런 하나가 한 줄, 색이 들어간 칸이 문제 지점</sub></td>
 </tr>
 <tr>
@@ -292,23 +294,15 @@ Langfuse의 엔티티 축(세션·사용자·스코어·평가자·어노테이�
 </tr>
 <tr>
 <td><img src="docs/media/failures.webp" alt="실패 유형"><br><sub><b>/failures</b> — 어느 규칙이 잡았는지로 묶은 런</sub></td>
-<td><img src="docs/media/thread.webp" alt="스레드"><br><sub><b>/threads/[id]</b> — 요청 묶음을 대화로 다시 이어서</sub></td>
-</tr>
-<tr>
-<td><img src="docs/media/datasets.webp" alt="데이터셋"><br><sub><b>/datasets</b> — 항목·실행 + 비교 매트릭스</sub></td>
-<td><img src="docs/media/prompt.webp" alt="프롬프트"><br><sub><b>/prompts/[name]</b> — 버전·라벨·버전 간 diff</sub></td>
-</tr>
-<tr>
-<td><img src="docs/media/evaluators.webp" alt="평가자"><br><sub><b>/evaluators</b> — 결정론 규칙과 모델 채점을 절대 같은 무게로 그리지 않는다</sub></td>
-<td><img src="docs/media/annotation.webp" alt="어노테이션 큐"><br><sub><b>/annotation</b> — 사람 검토 큐, 큐에 오른 이유가 붙는다</sub></td>
-</tr>
-<tr>
-<td><img src="docs/media/playground.webp" alt="플레이그라운드"><br><sub><b>/playground</b> — 기록된 호출을 편집 + 실행 스니펙 생성</sub></td>
-<td><img src="docs/media/automations.webp" alt="자동화"><br><sub><b>/automations</b> — 필터 → 샘플링 → 액션, 지금 무엇을 잡는지 계산해 보여준다</sub></td>
+<td><img src="docs/media/sessions.webp" alt="세션"><br><sub><b>/sessions</b> — 한 작업을 이어가는 런들을 묶어서</sub></td>
 </tr>
 <tr>
 <td><img src="docs/media/skills.webp" alt="스킬 후보"><br><sub><b>/skills</b> — 세션을 <i>넘어</i> 반복되는 패턴. 물어본 게 아니라 센 값이다</sub></td>
+<td><img src="docs/media/dashboard.webp" alt="대시보드"><br><sub><b>/dashboard</b> — 비용·지연·토큰 시계열, 비용 순으로 줄 세운 실패 유형</sub></td>
+</tr>
+<tr>
 <td><img src="docs/media/settings.webp" alt="설정"><br><sub><b>/settings</b> — 언어, 탐지 규칙 전문, CLI 계정 연결 상태</sub></td>
+<td><img src="docs/media/usage-light.webp" alt="라이트 테마"><br><sub>라이트 테마 — 순차 램프가 뒤집혀 흰 배경에서 낮은 값이 조용해진다</sub></td>
 </tr>
 </table>
 
@@ -320,19 +314,18 @@ Langfuse의 엔티티 축(세션·사용자·스코어·평가자·어노테이�
 
 | 경로 | 화면 |
 | :-- | :-- |
-| `/` | 랜딩 — 이 빌드에 담긴 트레이스에서 실제로 센 숫자만 쓴다 |
-| `/dashboard` | 비용·지연·토큰 시계열, 모델별 비교, 스코어 분포, 실패 유형 |
+| `/usage` | 토큰 사용량 — 합계·에이전트별·작업별·도구별. 워크스페이스가 여기서 시작한다 |
 | `/traces` | 목록 — 속성 필터 빌더(AND/OR), 저장된 뷰, 컬럼 설정 |
 | `/traces/[runId]` · `…/timeline` | 요약 → **중첩 run tree + 워터폴** → 관측 상세 탭 |
-| `/threads` · `/threads/[id]` | 스레드 — 요청 묶음을 대화로 이어서 |
-| `/playground` | 기록된 호출을 편집 + 실행 스니펫 생성 (모델을 부르지 않는다) |
-| `/automations` | 규칙 — 필터 → 샘플링 → 액션. 지금 무엇을 잡는지 실제로 계산해 보여준다 |
-| `/sessions` · `/users` | 이어지는 작업 단위별 · 최종 사용자별 집계 |
-| `/scores` · `/evaluators` · `/annotation` | 스코어 분포 · 평가자 · 사람 검토 큐 |
-| `/datasets` · `/datasets/[id]` | 데이터셋 + 실행 비교 매트릭스 |
-| `/prompts` · `/prompts/[name]` | 프롬프트 버전 · 라벨 · 버전 간 diff |
+| `/sessions` · `/sessions/[id]` | 한 작업을 이어가는 런들 |
+| `/skills` | 스킬 후보 — 세션을 *넘어* 반복되는 것 |
 | `/failures` | 실패 유형 — 같은 패턴의 런을 묶어서 |
+| `/dashboard` | 비용·지연·토큰 시계열, 모델별 비교, 실패 유형 |
 | `/settings` | 언어 전환, 탐지 규칙 전문, Claude Code·Codex 계정 연결 상태 |
+
+공개 사이트는 그 위에 자기 페이지를 더 얹는다: `/`(랜딩)·`/product`·`/integrations`·`/self-host`·
+`/compare/langfuse`·`/docs`. 설치본에서 `/` 는 곧바로 워크스페이스다 —
+[`docs/deployment.md`](./docs/deployment.md) 참고.
 
 ---
 
@@ -343,12 +336,12 @@ Langfuse의 엔티티 축(세션·사용자·스코어·평가자·어노테이�
 | Trace | Run / Trace | Core |
 | Observation / Span | Observation / Turn | Core |
 | Session | Session | Core, trace metadata에서 파생 |
-| User | User | Core, trace metadata에서 파생 |
-| Score | Derived score | Core, trace에서 결정론적으로 파생 |
-| Evaluator | Evaluator + resource API | 영속 |
-| Annotation queue | Annotation 화면 + 저장 action | 영속 |
-| Dataset / experiment | Dataset + resource API | 영속 |
-| Prompt management | Prompt version explorer + resource API | 영속 |
+| User | User | 필터·그룹 축. 전용 화면은 없다 |
+| Score | Derived score | trace 에서 결정론적으로 파생, 트레이스 화면에 붙는다 |
+| Evaluator | — | **미구현.** 타입은 `lib/types.ts` 에 남아 있다 |
+| Annotation queue | — | **미구현** |
+| Dataset / experiment | — | **미구현** |
+| Prompt management | — | **미구현** |
 
 Kibitz가 그 위에 더하는 것: request boundary 기반 접기, 반복 호출을 되돌아가는 호로 나타내는
 decision path, cache와 context 변화, 원인이 된 observation에 붙는 evidence-backed finding,

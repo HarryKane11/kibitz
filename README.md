@@ -83,14 +83,18 @@ evidence-backed findings, and counterfactuals** become first-class objects.
 | **Any other runtime** | OTLP/HTTP JSON receiver, or `POST` a finished Kibitz Run JSON |
 | **Move off Langfuse** | Import v4 `observations_v2` JSON, JSONL, or raw API responses |
 | **Observe** | nested traces, request groups, session / user / tag, latency, tokens, estimated cost |
+| **Watch a run live** | append-only spans while the run is still going (`POST /api/live`) |
 | **Diagnose** | repeated calls, tool cycles, empty-result loops, cache breaks, context eviction, unsourced numbers |
+| **Account for spend** | where the tokens went — by agent, by kind of work, by tool |
 | **Suggest fixes** | optional — via API key, Ollama, or an already-signed-in Claude Code / Codex account |
-| **Evaluate** | persistent prompt, dataset, evaluator, annotation and automation resource APIs |
 | **Operate** | atomic file writes, shared RWX volume, project-scoped read / ingest / admin tokens |
 
-Prompts, datasets, evaluators, annotation queues and automation rules live in their own persistent
-store with full CRUD APIs, separate from traces. The bundled examples only appear when no real
-resource has been saved yet.
+> [!NOTE]
+> The Langfuse-style resource screens (prompts, datasets, evaluators, annotation queues, automation
+> rules) were **removed**. They were the part of the product that had nothing to do with a long run,
+> and keeping them meant maintaining a second persistence layer for entities nobody had asked us for
+> yet. What is left is the tracing core. If you need them, say so in an issue — the entity model is
+> still in `lib/types.ts`.
 
 ---
 
@@ -285,13 +289,11 @@ project.**
 
 ## Screens
 
-Langfuse's entity axis (sessions, users, scores, evaluators, annotations, datasets, prompts) and
-LangSmith's workflow (nested run tree, waterfall, attribute filters, automation rules, baseline
-comparison, playground, threads) — on the same data. `Run ↔ Trace`, `Turn ↔ Observation`.
+Seven screens. `Run ↔ Trace`, `Turn ↔ Observation`.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/media/dashboard.webp" alt="Dashboard"><br><sub><b>/dashboard</b> — cost, latency and token series, failure modes ranked by what they cost</sub></td>
+<td width="50%"><img src="docs/media/usage.webp" alt="Token usage"><br><sub><b>/usage</b> — where the tokens went: by agent, by kind of work, by tool. The classification rule is printed under the chart</sub></td>
 <td width="50%"><img src="docs/media/traces.webp" alt="Traces"><br><sub><b>/traces</b> — one row per run, colored cells are the problem points</sub></td>
 </tr>
 <tr>
@@ -300,23 +302,15 @@ comparison, playground, threads) — on the same data. `Run ↔ Trace`, `Turn �
 </tr>
 <tr>
 <td><img src="docs/media/failures.webp" alt="Failure modes"><br><sub><b>/failures</b> — runs grouped by the rule that flagged them</sub></td>
-<td><img src="docs/media/thread.webp" alt="Threads"><br><sub><b>/threads/[id]</b> — request groups stitched back into a conversation</sub></td>
-</tr>
-<tr>
-<td><img src="docs/media/datasets.webp" alt="Datasets"><br><sub><b>/datasets</b> — items, runs and a comparison matrix</sub></td>
-<td><img src="docs/media/prompt.webp" alt="Prompts"><br><sub><b>/prompts/[name]</b> — versions, labels and diffs between them</sub></td>
-</tr>
-<tr>
-<td><img src="docs/media/evaluators.webp" alt="Evaluators"><br><sub><b>/evaluators</b> — deterministic rules and model graders are never drawn with the same weight</sub></td>
-<td><img src="docs/media/annotation.webp" alt="Annotation queue"><br><sub><b>/annotation</b> — human review queue, with the reason each trace was queued</sub></td>
-</tr>
-<tr>
-<td><img src="docs/media/playground.webp" alt="Playground"><br><sub><b>/playground</b> — edit a recorded call and generate a run snippet</sub></td>
-<td><img src="docs/media/automations.webp" alt="Automations"><br><sub><b>/automations</b> — filter → sampling → action, with a live dry run</sub></td>
+<td><img src="docs/media/sessions.webp" alt="Sessions"><br><sub><b>/sessions</b> — runs that continue one piece of work, folded together</sub></td>
 </tr>
 <tr>
 <td><img src="docs/media/skills.webp" alt="Skill candidates"><br><sub><b>/skills</b> — patterns repeated <i>across</i> sessions, counted rather than guessed</sub></td>
+<td><img src="docs/media/dashboard.webp" alt="Dashboard"><br><sub><b>/dashboard</b> — cost, latency and token series, failure modes ranked by what they cost</sub></td>
+</tr>
+<tr>
 <td><img src="docs/media/settings.webp" alt="Settings"><br><sub><b>/settings</b> — language, the full rule text, CLI account status</sub></td>
+<td><img src="docs/media/usage-light.webp" alt="Light theme"><br><sub>Light theme — the sequential ramp inverts so low values stay quiet on white</sub></td>
 </tr>
 </table>
 
@@ -328,19 +322,18 @@ comparison, playground, threads) — on the same data. `Run ↔ Trace`, `Turn �
 
 | Route | Screen |
 | :-- | :-- |
-| `/` | Landing — only numbers actually counted from the traces in this build |
-| `/dashboard` | Cost / latency / token time series, per-model comparison, score distribution, failure types |
+| `/usage` | Token usage — total, by agent, by kind of work, by tool. The workspace opens here |
 | `/traces` | List — attribute filter builder (AND/OR), saved views, column config |
 | `/traces/[runId]` · `…/timeline` | Summary → **nested run tree + waterfall** → observation detail tabs |
-| `/threads` · `/threads/[id]` | Threads — request groups stitched back into a conversation |
-| `/playground` | Edit a recorded call and generate a run snippet (it does not call a model) |
-| `/automations` | Rules — filter → sampling → action, with a live dry run of what it catches now |
-| `/sessions` · `/users` | Aggregates by continuing work unit and by end user |
-| `/scores` · `/evaluators` · `/annotation` | Score distribution, evaluators, human review queue |
-| `/datasets` · `/datasets/[id]` | Datasets and a run-comparison matrix |
-| `/prompts` · `/prompts/[name]` | Prompt versions, labels, diff between versions |
+| `/sessions` · `/sessions/[id]` | Runs that continue one piece of work |
+| `/skills` | Skill candidates — what repeats *across* sessions |
 | `/failures` | Failure types — runs grouped by shared pattern |
+| `/dashboard` | Cost / latency / token time series, per-model comparison, failure types |
 | `/settings` | Language switch, full rule text, Claude Code / Codex account status |
+
+The public site adds its own pages on top: `/` (landing), `/product`, `/integrations`, `/self-host`,
+`/compare/langfuse` and `/docs`. On an install `/` goes straight to the workspace — see
+[`docs/deployment.md`](./docs/deployment.md).
 
 ---
 
@@ -351,12 +344,12 @@ comparison, playground, threads) — on the same data. `Run ↔ Trace`, `Turn �
 | Trace | Run / Trace | Core |
 | Observation / Span | Observation / Turn | Core |
 | Session | Session | Core, derived from trace metadata |
-| User | User | Core, derived from trace metadata |
-| Score | Derived score | Core, derived deterministically from traces |
-| Evaluator | Evaluator + resource API | Persistent |
-| Annotation queue | Annotation screen + saved actions | Persistent |
-| Dataset / experiment | Dataset + resource API | Persistent |
-| Prompt management | Prompt version explorer + resource API | Persistent |
+| User | User | Filter and grouping axis, no dedicated screen |
+| Score | Derived score | Derived deterministically from traces, shown on the trace |
+| Evaluator | — | **Not implemented.** Types remain in `lib/types.ts` |
+| Annotation queue | — | **Not implemented** |
+| Dataset / experiment | — | **Not implemented** |
+| Prompt management | — | **Not implemented** |
 
 Kibitz adds on top: request-boundary folding, decision paths that render repeats as backward arcs,
 cache and context movement, evidence-backed findings pinned to the causing observation, and
