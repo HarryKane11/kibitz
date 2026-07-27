@@ -4,6 +4,7 @@
 
 | 문서 | 내용 |
 |---|---|
+| [direction.md](./direction.md) | **작업 방향과 인계 문서 — 새로 합류하면 여기부터** |
 | [self-hosting.md](./self-hosting.md) | Docker · compose · 로컬 실행 |
 | [ingestion.md](./ingestion.md) | Claude Code · Codex 세션 읽기 |
 | [live-tracing.md](./live-tracing.md) | **OpenTelemetry 실시간 수집** — Langfuse·Phoenix 계측 그대로 |
