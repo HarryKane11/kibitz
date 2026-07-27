@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "cp lib/mock/traces.demo.json lib/mock/traces.json && next build"
+}
