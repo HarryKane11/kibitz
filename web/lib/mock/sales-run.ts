@@ -359,7 +359,7 @@ const turns: Turn[] = drafts.map((d) => {
 
 export const salesRun: Run = {
   id: "run_8f3a21",
-  project: "braincrew",
+  project: "acme-analytics",
   agent: "sales-reporter",
   title: "Pulled together Q3 revenue",
   titleTail: " and posted it to #sales",

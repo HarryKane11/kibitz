@@ -13,7 +13,8 @@
 초 단위가 아니라 시간 단위로 도는 런을 위해 만든, Langfuse 핵심 tracing 작업 흐름의 대체재.
 
 <p>
-<a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-A4432B?style=flat-square"></a>
+<a href="https://kibitz-trace.vercel.app"><img alt="Live demo" src="https://img.shields.io/badge/live%20demo-kibitz--trace.vercel.app-A4432B?style=flat-square"></a>
+<a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-15171A?style=flat-square"></a>
 <img alt="Self-hosted" src="https://img.shields.io/badge/deploy-self--hosted-15171A?style=flat-square">
 <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white">
 <img alt="Python" src="https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white">
@@ -22,7 +23,9 @@
 <img alt="No LLM judge" src="https://img.shields.io/badge/LLM--as--judge-none-6E7681?style=flat-square">
 </p>
 
-**[빠른 시작](./docs/quickstart.md)** · [문서](./docs/README.md) · [개념](./docs/concepts.md) · [Langfuse에서 이전](./docs/migration-from-langfuse.md) · [디자인](./DESIGN.md) · **[English](./README.md)**
+**[라이브 데모](https://kibitz-trace.vercel.app)** · [빠른 시작](./docs/quickstart.md) · [문서](./docs/README.md) · [개념](./docs/concepts.md) · [Langfuse에서 이전](./docs/migration-from-langfuse.md) · [디자인](./DESIGN.md) · **[English](./README.md)**
+
+<sub>데모는 아래 데이터셋 위에서 돌고 수집은 닫혀 있다 — 무엇을 보내도 저장되지 않는다.</sub>
 
 <br>
 

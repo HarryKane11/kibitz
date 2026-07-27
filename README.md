@@ -13,7 +13,8 @@ Self-hosted observability that shows what your agent *decided* — and why.<br>
 A drop-in replacement for the core Langfuse tracing workflow, built for runs that last hours, not seconds.
 
 <p>
-<a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-A4432B?style=flat-square"></a>
+<a href="https://kibitz-trace.vercel.app"><img alt="Live demo" src="https://img.shields.io/badge/live%20demo-kibitz--trace.vercel.app-A4432B?style=flat-square"></a>
+<a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-15171A?style=flat-square"></a>
 <img alt="Self-hosted" src="https://img.shields.io/badge/deploy-self--hosted-15171A?style=flat-square">
 <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white">
 <img alt="Python" src="https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white">
@@ -22,7 +23,9 @@ A drop-in replacement for the core Langfuse tracing workflow, built for runs tha
 <img alt="No LLM judge" src="https://img.shields.io/badge/LLM--as--judge-none-6E7681?style=flat-square">
 </p>
 
-**[Quickstart](./docs/quickstart.md)** · [Docs](./docs/README.md) · [Concepts](./docs/concepts.md) · [Migrate from Langfuse](./docs/migration-from-langfuse.md) · [Design](./DESIGN.md) · **[한국어](./README.ko.md)**
+**[Live demo](https://kibitz-trace.vercel.app)** · [Quickstart](./docs/quickstart.md) · [Docs](./docs/README.md) · [Concepts](./docs/concepts.md) · [Migrate from Langfuse](./docs/migration-from-langfuse.md) · [Design](./DESIGN.md) · **[한국어](./README.ko.md)**
+
+<sub>The demo runs on the dataset below with ingestion closed — nothing you send it will be stored.</sub>
 
 <br>
 

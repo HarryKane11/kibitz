@@ -260,7 +260,7 @@ function buildRun(s: (typeof SEEDS)[number]): Run {
   const turns = buildTurns(s);
   return {
     id: s.id,
-    project: "braincrew",
+    project: "acme-platform",
     agent: s.agent,
     title: s.title,
     titleTail: s.tail,

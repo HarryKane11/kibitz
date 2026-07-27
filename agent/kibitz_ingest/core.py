@@ -358,7 +358,7 @@ def project_name(path: Path) -> str:
     """세션 파일 경로에서 사람이 읽는 프로젝트 이름을 뽑는다.
 
     Claude Code는 cwd를 `-`로 이어 디렉터리 이름을 만든다.
-    (`-Users-yunseongjae-Desktop-braincrew` → `braincrew`)
+    (`-Users-me-Desktop-acme` → `acme`)
     홈 경로 접두사를 걷어내고 남은 첫 의미 있는 조각을 쓴다.
     """
     raw = path.parent.name

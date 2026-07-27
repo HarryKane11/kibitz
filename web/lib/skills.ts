@@ -34,7 +34,7 @@ const FILE = new Set(["Read", "read_file", "Edit", "Write", "apply_patch", "edit
  * 호출 문자열에서 도구와 첫 인자를 되돌린다. 인제스터가 `tool(key="value")` 로 쓴다.
  *
  * `truncated` 가 중요하다. 인제스터는 56자에서 자르므로 긴 경로는 끝이 날아간다.
- * 그런 값에서 basename 을 뽑으면 `-Users-yunseongjae-a` 같은 조각이 파일 이름인 척
+ * 그런 값에서 basename 을 뽑으면 `-Users-me-a` 같은 조각이 파일 이름인 척
  * 하게 된다 — 잘린 값으로는 파일 시그니처를 만들지 않는다.
  */
 function parseCall(call: string): { tool: string; value: string; truncated: boolean } {
