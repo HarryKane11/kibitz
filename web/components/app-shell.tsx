@@ -5,24 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
-  ClipboardCheck,
-  Database,
   FileText,
-  FlaskConical,
-  Gauge,
   Coins,
   LayoutGrid,
   ListTree,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  MessagesSquare,
-  Ruler,
   Settings,
   ShieldAlert,
   Sparkles,
-  Users,
-  Zap,
 } from "lucide-react";
 import { CommandPalette } from "@/components/command-palette";
 import { LocaleSwitcher, useT } from "@/components/i18n-provider";
@@ -42,48 +34,24 @@ interface Item {
 /**
  * 네비게이션.
  *
- * 첫 방문에서 해야 할 네 가지와 고급 workflow를 분리한다.
- * 모든 엔티티를 같은 무게로 노출하면 tracing을 시작하기도 전에 제품 지도를 외워야 한다.
+ * 그룹이 없다. 여섯 항목에 접이식 그룹 세 개를 씌우면 내용보다 장식이 많아지고,
+ * 사용자는 트레이싱을 시작하기 전에 제품 지도를 먼저 외워야 한다.
+ *
+ * 순서는 "묻는 순서"다 — 토큰을 어디 썼나 → 무슨 일이 있었나 → 언제였나 →
+ * 무엇을 자동화할까 → 무엇이 반복해서 깨지나. 마지막 대시보드는 요약이라
+ * 답이 아니라 출발점이므로 맨 위가 아니다.
  */
-const CORE_ITEMS: Item[] = [
-  { href: "/dashboard", key: "nav.dashboard", icon: LayoutGrid },
+const NAV_ITEMS: Item[] = [
+  { href: "/usage", key: "nav.usage" as MessageKey, icon: Coins },
   { href: "/traces", key: "nav.traces", icon: ListTree },
   { href: "/sessions", key: "nav.sessions", icon: Activity },
+  { href: "/skills", key: "nav.skills", icon: Sparkles },
   { href: "/failures", key: "nav.failures", icon: ShieldAlert },
-];
-
-const GROUPS: { key: MessageKey; items: Item[] }[] = [
-  {
-    key: "nav.observability",
-    items: [
-      { href: "/threads", key: "nav.threads", icon: MessagesSquare },
-      { href: "/users", key: "nav.users", icon: Users },
-      { href: "/usage", key: "nav.usage" as MessageKey, icon: Coins },
-    ],
-  },
-  {
-    key: "nav.evaluation",
-    items: [
-      { href: "/scores", key: "nav.scores", icon: Gauge },
-      { href: "/evaluators", key: "nav.evaluators", icon: Ruler },
-      { href: "/annotation", key: "nav.annotation", icon: ClipboardCheck },
-    ],
-  },
-  {
-    key: "nav.development",
-    items: [
-      { href: "/datasets", key: "nav.datasets", icon: Database },
-      { href: "/prompts", key: "nav.prompts", icon: FileText },
-      { href: "/playground", key: "nav.playground", icon: FlaskConical },
-      { href: "/skills", key: "nav.skills", icon: Sparkles },
-      { href: "/automations", key: "nav.automations", icon: Zap },
-    ],
-  },
+  { href: "/dashboard", key: "nav.dashboard", icon: LayoutGrid },
 ];
 
 const ALL_ITEMS = [
-  ...CORE_ITEMS,
-  ...GROUPS.flatMap((group) => group.items),
+  ...NAV_ITEMS,
   { href: "/settings", key: "nav.settings" as MessageKey, icon: Settings },
   { href: "/docs", key: "nav.docs" as MessageKey, icon: FileText },
 ];
@@ -127,7 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen md:flex">
       <header className="sticky top-0 z-40 flex h-14 items-center border-b border-hair bg-ink-900/92 px-4 backdrop-blur-xl md:hidden">
-        <Link href="/dashboard" className="rounded-sm focus-visible:ring-2">
+        <Link href="/usage" className="rounded-sm focus-visible:ring-2">
           <KibitzLogo />
         </Link>
         <details className="group relative ml-auto">
@@ -140,24 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </summary>
           <div className="absolute top-[calc(100%+8px)] right-0 w-[min(88vw,320px)] rounded-lg border border-line bg-ink-800 p-3 shadow-md">
             <nav className="max-h-[min(68vh,560px)] space-y-4 overflow-y-auto">
-              <div>
-                <p className="mb-1 px-2.5 text-xs font-medium tracking-wide text-fg-3 uppercase">
-                  {t("nav.core")}
-                </p>
-                <NavItems items={CORE_ITEMS} isActive={isActive} t={t} />
-              </div>
-              {GROUPS.map((group) => (
-                <details
-                  key={group.key}
-                  className="group/nav"
-                  open
-                >
-                  <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-md px-2.5 text-xs font-medium tracking-wide text-fg-3 uppercase hover:bg-hover hover:text-fg-2 [&::-webkit-details-marker]:hidden">
-                    {t(group.key)}
-                  </summary>
-                  <NavItems items={group.items} isActive={isActive} t={t} />
-                </details>
-              ))}
+              <NavItems items={NAV_ITEMS} isActive={isActive} t={t} />
             </nav>
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hair pt-3">
               <Link href="/docs" className="min-h-11 px-2 py-3 text-sm text-fg-2">
@@ -180,7 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className={cn("flex h-14 items-center", collapsed ? "justify-center" : "px-5")}>
           {!collapsed && (
             <Link
-              href="/dashboard"
+              href="/usage"
               className="transition-colors duration-100 hover:text-fg"
             >
               {/* 사이드바 배경은 ink-800 이므로 노드 안쪽도 그 색이어야 선이 뒤로 지나가 보인다 */}
@@ -218,35 +169,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             collapsed ? "items-center gap-1 px-1.5" : "gap-3 px-3",
           )}
         >
-          {collapsed ? (
-            // 접히면 그룹 제목이 설 자리가 없다. 대신 실선으로 나눈다 —
-            // 아이콘만 남은 열에서 그룹 경계는 여백보다 선이 확실하다.
-            <>
-              <NavItems items={CORE_ITEMS} isActive={isActive} t={t} compact iconOnly />
-              {GROUPS.map((g) => (
-                <div key={g.key} className="w-full border-t border-hair pt-1">
-                  <NavItems items={g.items} isActive={isActive} t={t} compact iconOnly />
-                </div>
-              ))}
-            </>
-          ) : (
-            <>
-              <div>
-                <p className="mb-1 px-2.5 text-[10.5px] font-medium tracking-wide text-fg-3 uppercase">
-                  {t("nav.core")}
-                </p>
-                <NavItems items={CORE_ITEMS} isActive={isActive} t={t} compact />
-              </div>
-              {GROUPS.map((g) => (
-                <details key={g.key} className="group/nav" open>
-                  <summary className="flex min-h-9 cursor-pointer list-none items-center gap-2 rounded-md px-2.5 text-[10.5px] font-medium tracking-wide text-fg-3 uppercase hover:bg-hover hover:text-fg-2 [&::-webkit-details-marker]:hidden">
-                    {t(g.key)}
-                  </summary>
-                  <NavItems items={g.items} isActive={isActive} t={t} compact />
-                </details>
-              ))}
-            </>
-          )}
+          <NavItems
+            items={NAV_ITEMS}
+            isActive={isActive}
+            t={t}
+            compact
+            iconOnly={collapsed}
+          />
         </nav>
 
         <div

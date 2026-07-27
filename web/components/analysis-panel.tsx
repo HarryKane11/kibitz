@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandOrNothing } from "@/components/brand";
+import { brandForProvider } from "@/lib/brand";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, LogIn, Sparkles, TriangleAlert } from "lucide-react";
@@ -170,6 +172,7 @@ export function AnalysisPanel({
                   : "border-line text-fg-2 hover:border-line-3 hover:text-fg",
               )}
             >
+              <BrandOrNothing name={brandForProvider(p.id)} className="h-3.5 w-3.5" />
               {p.label}
               {/* 설정됨 = 채워진 점. 새 색을 만들지 않는다 — 팔레트는 셋뿐이고
                   sky 는 선택 전용이다. 밝기 차이로 말한다. */}
@@ -468,7 +471,8 @@ function Result({
         >
           {t("analysis.forget")}
         </button>
-        <span className="w-full font-mono text-[11px] text-fg-3">
+        <span className="flex w-full items-center gap-1.5 font-mono text-[11px] text-fg-3">
+          <BrandOrNothing name={brandForProvider(result.provider)} className="h-3 w-3 opacity-70" />
           {result.model}
           {result.usage &&
             ` · ${t("analysis.usage", {

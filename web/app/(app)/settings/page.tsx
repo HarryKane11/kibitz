@@ -1,3 +1,5 @@
+import { BrandOrNothing } from "@/components/brand";
+import { brandForProvider } from "@/lib/brand";
 import { getT } from "@/lib/i18n";
 import { FAILURE_RULE, type FailureKind } from "@/lib/types";
 import { Page, PageHeader, Card } from "@/components/page";
@@ -59,7 +61,10 @@ export default async function SettingsPage() {
                 key={provider.id}
                 className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
               >
-                <dt className="text-sm font-medium text-fg">{provider.label}</dt>
+                <dt className="flex items-center gap-2 text-sm font-medium text-fg">
+                      <BrandOrNothing name={brandForProvider(provider.id)} className="h-4 w-4" />
+                      {provider.label}
+                    </dt>
                 <dd className="flex flex-wrap items-center gap-2">
                   <span
                     className={

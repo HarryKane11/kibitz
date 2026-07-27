@@ -101,6 +101,40 @@ export function Row({
   );
 }
 
+/**
+ * 단위가 붙은 개수.
+ *
+ * 목록에서 숫자만 덩그러니 놓지 않기 위한 것이다. `$11.731` 과 `94%` 와 `just now`
+ * 는 자기가 무엇인지 스스로 말하는데, `8` 만 그러지 못했다 — 컬럼 헤더는 화면
+ * 맨 위에 한 번 있고, 열두 번째 행에서 그걸 다시 올려다보는 사람은 없다.
+ *
+ * 숫자는 읽는 크기로, 단위는 물러난 크기로 둔다. 훑을 때는 숫자만 보이고,
+ * 멈춰서 볼 때 단위가 답을 준다.
+ */
+export function Count({
+  value,
+  unit,
+  tone,
+}: {
+  value: number;
+  unit: string;
+  tone?: "warn" | "muted";
+}) {
+  return (
+    <p className="flex items-baseline gap-1 font-mono text-sm lg:justify-end">
+      <span
+        className={cn(
+          "tabular-nums",
+          tone === "warn" ? "text-warn" : tone === "muted" ? "text-fg-3" : "text-fg-2",
+        )}
+      >
+        {value.toLocaleString()}
+      </span>
+      <span className="text-[11px] text-fg-3">{unit}</span>
+    </p>
+  );
+}
+
 export function ColumnHeads({
   cols,
   className,

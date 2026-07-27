@@ -1,3 +1,5 @@
+import { BrandOrNothing } from "@/components/brand";
+import { brandForSource } from "@/lib/brand";
 import { notFound } from "next/navigation";
 import { getRun } from "@/lib/data";
 import { getT } from "@/lib/i18n";
@@ -31,6 +33,12 @@ export default async function RunTimelinePage(
               <span className="text-fg-2">{run.titleTail}</span>
             </h1>
             <p className="mt-2 flex flex-wrap gap-2.5 text-xs text-fg-3">
+              {run.source && (
+                <span className="flex items-center gap-1 font-mono">
+                  <BrandOrNothing name={brandForSource(run.source)} className="h-3 w-3" />
+                  {run.source}
+                </span>
+              )}
               <span className="font-mono">{run.agent}</span>
               <span>{t("traces.turnCount", { n: run.turns.length })}</span>
               <span>{fmtDuration(run.durationMs, t)}</span>

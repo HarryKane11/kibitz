@@ -1,3 +1,4 @@
+import { Brand } from "@/components/brand";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -25,8 +26,8 @@ import type { MessageKey } from "@/lib/i18n/shared";
 const PLATFORM = [
   { icon: Layers3, title: "decisionTitle", body: "decisionBody", href: "/traces" },
   { icon: ScanSearch, title: "inlineTitle", body: "inlineBody", href: "/failures" },
-  { icon: Database, title: "counterfactualTitle", body: "counterfactualBody", href: "/scores" },
-  { icon: GitBranch, title: "evidenceTitle", body: "evidenceBody", href: "/playground" },
+  { icon: Database, title: "counterfactualTitle", body: "counterfactualBody", href: "/usage" },
+  { icon: GitBranch, title: "evidenceTitle", body: "evidenceBody", href: "/skills" },
 ] as const;
 
 const LONG_RUN_OBJECTS = [
@@ -34,6 +35,21 @@ const LONG_RUN_OBJECTS = [
   ["difference2Title", "difference2Body"],
   ["difference3Title", "difference3Body"],
   ["difference4Title", "difference4Body"],
+] as const;
+
+
+/**
+ * 랜딩에 거는 수집 경로. 로고와 이름은 고유명사라 로케일이 갈리지 않는다 —
+ * i18n 사전에 넣으면 번역 대상처럼 보여서 언젠가 누가 "Codex"를 번역한다.
+ */
+const INGEST_MARKS = [
+  { key: "claudeCode", label: "Claude Code" },
+  { key: "codex", label: "Codex" },
+  { key: "opentelemetry", label: "OpenTelemetry" },
+  { key: "langchain", label: "LangChain" },
+  { key: "langfuse", label: "Langfuse" },
+  { key: "python", label: "Python" },
+  { key: "typescript", label: "TypeScript" },
 ] as const;
 
 export async function Landing() {
@@ -247,6 +263,21 @@ export async function Landing() {
               {t("landing.ingestBody")}
             </p>
           </div>
+
+          {/* 받는 것들. 이름만 적어도 되지만, 훑어보는 사람은 글자보다 마크를 먼저
+              찾는다. 여기 있는 여섯은 전부 실제로 인제스터가 처리하는 것이다 —
+              "지원 예정"을 로고로 걸지 않는다. */}
+          <ul className="mt-10 flex flex-wrap items-center gap-x-7 gap-y-4">
+            <li className="font-mono text-[11px] tracking-[0.08em] text-fg-3 uppercase">
+              {t("landing.ingestSupported")}
+            </li>
+            {INGEST_MARKS.map(({ key, label }) => (
+              <li key={key} className="flex items-center gap-2 text-fg-2">
+                <Brand name={key} className="h-4 w-4" />
+                <span className="text-sm">{label}</span>
+              </li>
+            ))}
+          </ul>
 
           <figure className="mt-12 overflow-hidden rounded-xl border border-line bg-[#0a0b0d]">
             <Image

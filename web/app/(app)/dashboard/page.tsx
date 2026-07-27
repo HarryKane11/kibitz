@@ -1,3 +1,5 @@
+import { BrandOrNothing } from "@/components/brand";
+import { brandForModel, brandForSource } from "@/lib/brand";
 import Link from "next/link";
 import { ArrowRight, BookOpen, ChevronDown, TriangleAlert } from "lucide-react";
 import {
@@ -6,7 +8,6 @@ import {
   getTimeSeries,
   listClusters,
   listRuns,
-  listScores,
 } from "@/lib/data";
 import { getT } from "@/lib/i18n";
 import { Card, Chip, Page, PageHeader } from "@/components/page";
@@ -24,13 +25,12 @@ import { cn } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const t = await getT();
-  const [overview, clusters, runs, ts, byModel, scores] = await Promise.all([
+  const [overview, clusters, runs, ts, byModel] = await Promise.all([
     getOverview(),
     listClusters(),
     listRuns(),
     getTimeSeries(14),
     getByModel(),
-    listScores(),
   ]);
 
   const labels = ts.cost.points.map((point) => point.t.slice(5));
@@ -38,11 +38,13 @@ export default async function DashboardPage() {
   const totalCost = runs.reduce((sum, run) => sum + run.costUsd, 0);
   const problemRuns = runs.filter((run) => run.status !== "ok");
   const troubled = problemRuns.slice(0, 6);
-  const efficiency = scores.filter((score) => score.name === "efficiency" && score.value !== null);
+  // 예전에는 여기에 "efficiency 스코어" 분포가 있었다. 그건 우리가 만들지 않은
+  // 점수였고, 스코어 화면과 함께 없앴다. 대신 우리가 실제로 계산하는 숫자를 쓴다 —
+  // 런마다 낭비·오류 판정에 들어간 토큰의 비율. 10% 구간으로 센다.
   const bins = Array.from({ length: 10 }, (_, index) => ({
-    label: `${(index / 10).toFixed(1)}`,
-    count: efficiency.filter(
-      (score) => Math.min(9, Math.floor((score.value ?? 0) * 10)) === index,
+    label: `${index * 10}%`,
+    count: runs.filter(
+      (run) => Math.min(9, Math.floor(run.score.wastedTokenPct / 10)) === index,
     ).length,
   }));
 
@@ -131,7 +133,16 @@ export default async function DashboardPage() {
                         {run.title}
                         <span className="text-fg-2">{run.titleTail}</span>
                       </p>
-                      <p className="mt-0.5 flex flex-wrap gap-2.5 text-[11px] text-fg-3">
+                      <p className="mt-0.5 flex flex-wrap items-center gap-2.5 text-[11px] text-fg-3">
+                        {run.source && (
+                          <span className="flex items-center gap-1 font-mono">
+                            <BrandOrNothing
+                              name={brandForSource(run.source)}
+                              className="h-3 w-3"
+                            />
+                            {run.source}
+                          </span>
+                        )}
                         <span className="font-mono">{run.agent}</span>
                         <span>{relTime(run.startedAt)}</span>
                         <span>{fmtDuration(run.durationMs)}</span>
@@ -235,6 +246,7 @@ export default async function DashboardPage() {
             <BarRows
               rows={byModel.map((model) => ({
                 label: model.label,
+                brand: brandForModel(model.label),
                 value: model.tokens,
                 note: `${t("units.traceCount", { n: model.traces })} · ${fmtUsd(model.cost)}`,
               }))}
@@ -243,8 +255,8 @@ export default async function DashboardPage() {
             />
           </ChartFrame>
           <ChartFrame
-            title={t("dashboard.scoreDistribution")}
-            hint={t("evaluators.deterministicNote")}
+            title={t("dashboard.wasteDistribution")}
+            hint={t("dashboard.deterministicNote")}
           >
             <Histogram bins={bins} colorIndex={3} />
           </ChartFrame>

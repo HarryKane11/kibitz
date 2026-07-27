@@ -25,28 +25,55 @@ export const WORK_KINDS: WorkKind[] = [
 ];
 
 /**
- * 분류 규칙. 화면에 이 문자열을 그대로 노출한다 — 규칙이 보이지 않으면 근거가 아니다.
- * 순서가 곧 우선순위다 (먼저 맞는 것이 이긴다).
+ * 실행 계열 도구. `obsType === "tool"` 을 **쓰기**와 **실행**으로 갈라 준다.
+ *
+ * 이 목록이 규칙의 전부다. 나머지 분류는 인제스터가 이미 한 것을 그대로 쓴다 —
+ * 화면에 이 문자열을 노출한다.
  */
-export const WORK_RULE: Record<Exclude<WorkKind, "other">, string[]> = {
-  write: ["edit", "write", "patch", "insert", "replace", "create", "notebook"],
-  read: ["read", "grep", "glob", "search", "fetch", "list", "view", "extract", "lookup", "query"],
-  execute: ["bash", "shell", "exec", "run", "test", "build", "install"],
-  delegate: ["task", "agent", "delegate", "handoff", "sendmessage", "spawn"],
-  converse: ["respond", "answer", "reply", "message", "chat", "completion"],
-};
+export const EXECUTE_HINTS = [
+  "bash",
+  "shell",
+  "exec",
+  "run",
+  "test",
+  "build",
+  "install",
+  "compile",
+  "deploy",
+];
 
-/** 도구 하나의 작업 종류. `call` 은 `Edit(file_path="…")` 같은 모양이다. */
+/**
+ * 관측 하나의 작업 종류.
+ *
+ * **1차 신호는 `obsType` 이다.** 인제스터가 에이전트별 도구 집합(읽기·쓰기·실행·위임)
+ * 으로 이미 정해 둔 값이고, 그걸 내 정규식으로 다시 맞히려 들면 그쪽이 틀린다 —
+ * OpenInference 의 `span.kind` 를 이름 추측보다 먼저 보는 것과 같은 이유다.
+ *
+ * 처음엔 도구 이름만으로 분류했다. 그랬더니 합성 픽스처의 도메인 도구
+ * (`draft_comment`·`assign_owner`·`cite_claim`…)가 전부 `기타` 로 떨어져 그 버킷이
+ * 2위가 됐다. 코드 에이전트의 어휘로 임의의 에이전트를 분류하려 한 것이 잘못이었다.
+ *
+ * 도구 이름은 `tool` 을 쓰기와 실행으로 가르는 데만 쓴다. 그 하나는 이름으로만
+ * 알 수 있다 — 둘 다 상태를 바꾸지만 하나는 파일을, 하나는 프로세스를 바꾼다.
+ */
 export function workKindOf(turn: Turn): WorkKind {
-  const tool = (turn.call ?? "").split("(")[0].toLowerCase();
-  if (!tool) {
-    // 도구가 없으면 모델이 말한 것이다 — 그것도 토큰을 쓴다.
-    return turn.obsType === "llm" || turn.obsType === "chain" ? "converse" : "other";
+  switch (turn.obsType) {
+    case "retriever":
+      return "read";
+    case "agent":
+      return "delegate";
+    case "llm":
+    case "chain":
+      return "converse";
+    case "event":
+      return "other";
+    case "tool": {
+      const tool = (turn.call ?? "").split("(")[0].toLowerCase();
+      return EXECUTE_HINTS.some((needle) => tool.includes(needle)) ? "execute" : "write";
+    }
+    default:
+      return "other";
   }
-  for (const kind of Object.keys(WORK_RULE) as Exclude<WorkKind, "other">[]) {
-    if (WORK_RULE[kind].some((needle) => tool.includes(needle))) return kind;
-  }
-  return "other";
 }
 
 export interface Bucket {

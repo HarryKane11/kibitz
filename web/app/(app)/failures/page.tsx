@@ -1,4 +1,6 @@
-import { listClusters } from "@/lib/data";
+import { allRuns, listClusters, listSkillCandidates } from "@/lib/data";
+import { buildAgentRules, projectOf, rulesMarkdown } from "@/lib/agent-rules";
+import { AgentRulesPanel } from "@/components/agent-rules-panel";
 import { getT } from "@/lib/i18n";
 import { Page, PageHeader, Card, Chip, Stat } from "@/components/page";
 import { Sparkline } from "@/components/viz";
@@ -6,8 +8,12 @@ import { fmtUsd } from "@/lib/verdict";
 
 export default async function FailuresPage() {
   const t = await getT();
-  const clusters = await listClusters();
+  const [clusters, skills] = await Promise.all([listClusters(), listSkillCandidates()]);
   const totalUsd = clusters.reduce((a, c) => a + c.wastedUsd, 0);
+
+  // 판정을 에이전트가 읽는 문장으로. 모델을 부르지 않는다 — lib/agent-rules.ts 참고.
+  const rules = buildAgentRules(clusters, skills);
+  const markdown = rulesMarkdown(rules, projectOf(allRuns()));
 
   return (
     <Page>
@@ -46,6 +52,8 @@ export default async function FailuresPage() {
           </Card>
         ))}
       </ul>
+
+      <AgentRulesPanel rules={rules} markdown={markdown} />
     </Page>
   );
 }

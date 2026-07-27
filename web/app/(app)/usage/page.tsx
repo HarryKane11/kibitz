@@ -8,7 +8,8 @@ import {
   StatTile,
   TimeSeries,
 } from "@/components/charts";
-import { WORK_RULE, type WorkKind } from "@/lib/usage";
+import { EXECUTE_HINTS } from "@/lib/usage";
+import { brandForModel, brandForSource } from "@/lib/brand";
 import { fmtTokens, fmtUsd, fmtDuration } from "@/lib/verdict";
 import type { MessageKey } from "@/lib/i18n/shared";
 
@@ -80,6 +81,7 @@ export default async function UsagePage() {
           <BarRows
             rows={usage.bySource.map((b) => ({
               label: b.key,
+              brand: brandForSource(b.key),
               value: b.tokens,
               note: t("usage.runNote", { runs: b.runs, cost: fmtUsd(b.costUsd) }),
             }))}
@@ -126,6 +128,7 @@ export default async function UsagePage() {
           <BarRows
             rows={usage.byModel.map((b) => ({
               label: b.key,
+              brand: brandForModel(b.key),
               value: b.tokens,
               note: t("usage.runNote", { runs: b.runs, cost: fmtUsd(b.costUsd) }),
             }))}
@@ -153,18 +156,26 @@ export default async function UsagePage() {
         <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-fg-2">
           {t("usage.ruleBody")}
         </p>
-        <dl className="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
-          {(Object.keys(WORK_RULE) as Exclude<WorkKind, "other">[]).map((kind) => (
+        <dl className="mt-3 grid gap-x-6 gap-y-1.5 text-xs sm:grid-cols-2">
+          {[
+            ["read", "usage.ruleRead"],
+            ["write", "usage.ruleWrite"],
+            ["execute", "usage.ruleExecute"],
+            ["delegate", "usage.ruleDelegate"],
+            ["converse", "usage.ruleConverse"],
+            ["other", "usage.ruleOther"],
+          ].map(([kind, key]) => (
             <div key={kind} className="flex items-baseline gap-2 border-b border-hair py-1">
-              <dt className="w-16 shrink-0 text-xs font-medium text-fg-2">
-                {workLabel(kind)}
-              </dt>
-              <dd className="min-w-0 truncate font-mono text-[11px] text-fg-3">
-                {WORK_RULE[kind].join(" · ")}
+              <dt className="w-16 shrink-0 font-medium text-fg-2">{workLabel(kind)}</dt>
+              <dd className="min-w-0 font-mono text-[11px] text-fg-3">
+                {t(key as MessageKey)}
               </dd>
             </div>
           ))}
         </dl>
+        <p className="mt-2 font-mono text-[11px] text-fg-3">
+          {t("usage.ruleExecuteHints")} {EXECUTE_HINTS.join(" · ")}
+        </p>
 
         {drift !== 0 && (
           <p className="mt-4 max-w-3xl border-l-2 border-line-2 pl-4 text-xs leading-relaxed text-fg-3">

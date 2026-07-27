@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandOrNothing } from "@/components/brand";
+import type { BrandKey } from "@/lib/brand-marks";
 import { useId, useMemo, useState } from "react";
 import { Table2, TrendingDown, TrendingUp } from "lucide-react";
 import { useT } from "@/components/i18n-provider";
@@ -345,7 +347,7 @@ export function BarRows({
   format,
   colorByIndex = false,
 }: {
-  rows: { label: string; value: number; note?: string }[];
+  rows: { label: string; value: number; note?: string; brand?: BrandKey | null }[];
   format?: NumFormat;
   colorByIndex?: boolean;
 }) {
@@ -357,7 +359,10 @@ export function BarRows({
       {rows.map((r, i) => (
         <li key={r.label}>
           <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
-            <span className="truncate font-medium text-fg-2">{r.label}</span>
+            <span className="flex min-w-0 items-center gap-1.5 font-medium text-fg-2">
+              <BrandOrNothing name={r.brand ?? null} className="h-3 w-3 opacity-70" />
+              <span className="truncate">{r.label}</span>
+            </span>
             <span className="shrink-0 font-mono text-fg">{fmt(r.value)}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-[4px] bg-fill">

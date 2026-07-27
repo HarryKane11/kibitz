@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandOrNothing } from "@/components/brand";
+import { brandForModel, brandForSource } from "@/lib/brand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePersisted } from "@/lib/persisted";
 import Link from "next/link";
@@ -152,7 +154,16 @@ export function TraceTable({ runs }: { runs: Run[] }) {
                   {r.title}
                   <span className="text-fg-2">{r.titleTail}</span>
                 </p>
-                <p className="mt-1 flex flex-wrap gap-2.5 text-xs text-fg-3">
+                <p className="mt-1 flex flex-wrap items-center gap-2.5 text-xs text-fg-3">
+                  {/* 어느 런타임이 만든 런인가. 목록에서 이걸 못 보면 Claude Code 세션과
+                      SDK 로 계측한 프로덕션 런이 같은 줄처럼 읽힌다 — 둘은 볼 때
+                      기대하는 것이 다르다. */}
+                  {r.source && (
+                    <span className="flex items-center gap-1 font-mono">
+                      <BrandOrNothing name={brandForSource(r.source)} className="h-3 w-3" />
+                      {r.source}
+                    </span>
+                  )}
                   <span className="font-mono">{r.agent}</span>
                   <span className="font-mono">{r.id}</span>
                   <span className={STATUS_TEXT[r.status]}>{t(`status.${r.status}`)}</span>
@@ -195,7 +206,10 @@ export function TraceTable({ runs }: { runs: Run[] }) {
                     <span className="font-mono text-xs text-fg-3">{fmtUsd(r.costUsd)}</span>
                   )}
                   {c.key === "model" && (
-                    <span className="truncate font-mono text-xs text-fg-3">{r.model}</span>
+                    <span className="flex min-w-0 items-center gap-1.5 font-mono text-xs text-fg-3">
+                      <BrandOrNothing name={brandForModel(r.model)} className="h-3 w-3 opacity-70" />
+                      <span className="truncate">{r.model}</span>
+                    </span>
                   )}
                   {c.key === "started" && (
                     <span className="font-mono text-xs text-fg-3">

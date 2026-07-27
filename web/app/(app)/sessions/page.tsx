@@ -1,6 +1,6 @@
 import { listSessions } from "@/lib/data";
 import { getT } from "@/lib/i18n";
-import { Page, PageHeader, ColumnHeads, EmptyState, Row } from "@/components/page";
+import { Page, PageHeader, ColumnHeads, Count, EmptyState, Row } from "@/components/page";
 import { fmtDuration, fmtTokens, fmtUsd, relTime } from "@/lib/verdict";
 import { cn } from "@/lib/utils";
 
@@ -36,10 +36,13 @@ export default async function SessionsPage() {
                 <p className="mt-1 flex flex-wrap gap-2.5 text-xs text-fg-3">
                   {s.userId && <span className="font-mono">{s.userId}</span>}
                   <span>{fmtDuration(s.durationMs)}</span>
-                  <span>{fmtTokens(s.totalTokens)}</span>
+                  {/* 136.7K 만 있으면 무엇의 136.7K 인지 알 수 없다. */}
+                  <span>
+                    {fmtTokens(s.totalTokens)} {t("units.unitTokens")}
+                  </span>
                 </p>
               </div>
-              <p className="text-sm text-fg-2 lg:text-right">{s.traceIds.length}</p>
+              <Count value={s.traceIds.length} unit={t("units.unitTraces", { n: s.traceIds.length })} />
               <p
                 className={cn(
                   "text-sm font-semibold lg:text-right",

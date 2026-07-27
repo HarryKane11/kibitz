@@ -39,3 +39,7 @@ __pycache__/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# 옆으로 치워둔 빈 중첩 저장소 (커밋 0개). 필요 없으면 지워도 된다.
+agent/.git.disabled-nested-repo/
+web/.git.disabled-nested-repo/

@@ -7,6 +7,22 @@ import {
   NumberedFlow,
 } from "@/components/marketing-page";
 import { getLocale } from "@/lib/i18n";
+import { Brand } from "@/components/brand";
+import type { BrandKey } from "@/lib/brand-marks";
+
+/**
+ * 방식별 마크. **로케일 사본이 아니라 여기 한 곳에** 둔다 — 두 사본에 나눠 적으면
+ * 한쪽만 고쳐지고, 그 순간 영어 화면과 한국어 화면이 다른 로고를 단다.
+ * 두 사본이 같은 순서로 여섯 개를 나열한다는 사실에 기댄다.
+ */
+const METHOD_BRANDS: BrandKey[][] = [
+  ["python"],
+  ["typescript"],
+  ["opentelemetry"],
+  ["claudeCode", "codex"],
+  ["langfuse"],
+  [], // 직접 HTTP — 브랜드가 없다. lucide 아이콘이 남는다
+];
 
 const COPY = {
   en: {
@@ -153,14 +169,24 @@ export default async function IntegrationsPage() {
     >
       <MarketingSection>
         <div className="grid gap-4 md:grid-cols-6">
+          {/* 여섯 장을 3+3 으로 놓는다. 앞 둘만 넓게 두면 마지막 한 장이 자기 줄에
+              혼자 남아, 정렬이 아니라 남은 조각처럼 보인다. */}
           {copy.methods.map(({ title, body, icon: Icon }, index) => (
             <article
               key={title}
-              className={`rounded-xl border border-line bg-ink-800 p-6 ${
-                index < 2 ? "md:col-span-3" : "md:col-span-2"
-              }`}
+              className="rounded-xl border border-line bg-ink-800 p-6 md:col-span-2"
             >
-              <Icon className="h-5 w-5 text-brand" aria-hidden />
+              {/* 남의 로고는 우리 강조색을 입지 않는다. 중립 잉크로 두면 "이건
+                  제3자 마크"와 "이건 우리 아이콘"이 한눈에 갈린다. */}
+              {METHOD_BRANDS[index]?.length ? (
+                <span className="flex items-center gap-2 text-fg">
+                  {METHOD_BRANDS[index].map((b) => (
+                    <Brand key={b} name={b} className="h-5 w-5" />
+                  ))}
+                </span>
+              ) : (
+                <Icon className="h-5 w-5 text-brand" aria-hidden />
+              )}
               <h2 className="mt-8 text-xl font-semibold">{title}</h2>
               <p className="mt-3 text-base leading-relaxed text-fg-2">{body}</p>
             </article>

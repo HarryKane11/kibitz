@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ExternalLink, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import type { Run, Turn } from "@/lib/types";
 import { FAILURE_RULE } from "@/lib/types";
 import { buildTree } from "@/lib/tree";
@@ -266,13 +265,6 @@ function ObservationDetail({
               ))}
             </TabsList>
           </Tabs>
-          <Link
-            href={`/playground?run=${run.id}&turn=${turn.index}`}
-            className="ml-auto flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-medium text-fg-2 transition-colors duration-100 hover:border-line-3 hover:text-fg active:scale-[0.97]"
-          >
-            {t("traces.openPlayground")}
-            <ExternalLink className="h-3 w-3" aria-hidden />
-          </Link>
         </div>
       </header>
 

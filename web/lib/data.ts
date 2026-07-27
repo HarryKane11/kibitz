@@ -1,7 +1,7 @@
 import "server-only";
 import capturedRuns from "@/lib/mock/traces.json";
 import { loadStoredRun, loadStoredRuns, storedFileCount } from "@/lib/store";
-import { aggregates, indexedCount, summaries, syncFromFiles, type RunRow } from "@/lib/index-db";
+import { indexedCount, summaries, syncFromFiles, type RunRow } from "@/lib/index-db";
 import { matchRun, shortcuts, type Query } from "@/lib/query";
 import { salesRun } from "@/lib/mock/sales-run";
 import {
@@ -10,7 +10,9 @@ import {
   type FailureCluster,
   type FailureKind,
   type Overview,
+  type PhaseScore,
   type Run,
+  type RunScore,
   type RunStatus,
   type Turn,
   type Verdict,
@@ -220,27 +222,43 @@ function buildTurns(s: (typeof SEEDS)[number]): Turn[] {
  */
 const isDecision = (t: Turn) => t.obsType !== "chain";
 
-export function computeScore(turns: Turn[]): Run["score"] {
-  const scored = turns.filter(isDecision);
-  if (!scored.length) {
-    return { accuracy: 100, errors: 0, wastes: 0, wastedTokenPct: 0, phases: [] };
-  }
-  const good = scored.filter((t) => t.verdict === "good").length;
-  const totalTokens = scored.reduce((a, t) => a + t.tokens, 0) || 1;
-  const wasted = scored
+/**
+ * 런의 점수. 전부 세기이고, 모델에게 묻지 않는다.
+ *
+ * 스코어 **화면**은 없앴지만 이 계산은 남는다 — 화면과 계산은 다른 것이다.
+ * 트레이스 목록의 정확도 열, 대시보드 요약, 분석 브리프가 이 값을 쓴다.
+ *
+ * **`agent/kibitz_ingest/build.py` 와 같은 식이어야 한다.** 픽스처와 실제로
+ * 인제스트된 런이 다른 식으로 채점되면 두 숫자를 나란히 놓는 순간 둘 다
+ * 못 믿게 된다. 저쪽을 고치면 여기도 고친다.
+ */
+function computeScore(turns: Turn[]): RunScore {
+  const decisions = turns.filter(isDecision);
+  const denom = decisions.length || 1;
+  const totalTokens = turns.reduce((a, t) => a + t.tokens, 0);
+  const wastedTokens = turns
     .filter((t) => t.verdict === "waste" || t.verdict === "error")
     .reduce((a, t) => a + t.tokens, 0);
 
+  const phases: PhaseScore[] = (["plan", "gather", "reason", "deliver"] as const).map(
+    (phase) => {
+      const sub = turns.filter((t) => t.phase === phase);
+      const ok = sub.filter((t) => t.verdict === "good").length;
+      return {
+        phase,
+        accuracy: sub.length ? Math.round((ok / sub.length) * 100) : 100,
+      };
+    },
+  );
+
   return {
-    accuracy: Math.round((good / scored.length) * 100),
-    errors: scored.filter((t) => t.verdict === "error").length,
-    wastes: scored.filter((t) => t.verdict === "waste").length,
-    wastedTokenPct: Math.round((wasted / totalTokens) * 100),
-    phases: PHASES.map((p) => {
-      const inPhase = scored.filter((t) => t.phase === p);
-      const ok = inPhase.filter((t) => t.verdict === "good").length;
-      return { phase: p, accuracy: inPhase.length ? Math.round((ok / inPhase.length) * 100) : 100 };
-    }),
+    accuracy: Math.round(
+      (decisions.filter((t) => t.verdict === "good").length / denom) * 100,
+    ),
+    errors: turns.filter((t) => t.verdict === "error").length,
+    wastes: turns.filter((t) => t.verdict === "waste").length,
+    wastedTokenPct: totalTokens ? Math.round((wastedTokens / totalTokens) * 100) : 0,
+    phases,
   };
 }
 
@@ -362,17 +380,7 @@ export async function storedSummaries(query: Parameters<typeof summaries>[0] = {
   return summaries(query);
 }
 
-/** 대시보드 집계. 20,000 건에서도 파일을 열지 않는다. */
-export async function storedAggregates(since?: string) {
-  ensureIndex();
-  return aggregates(since);
-}
 
-/** 트레이스 하나. 개수와 무관하게 파일 하나만 읽는다. */
-export async function storedRun(id: string): Promise<Run | undefined> {
-  const run = loadStoredRun(id);
-  return run ? { ...run, score: computeScore(run.turns) } : undefined;
-}
 
 export function allRuns(): Run[] {
   const byId = new Map<string, Run>();
@@ -455,8 +463,13 @@ export async function getOverview(): Promise<Overview> {
 
 export const AGENTS = Array.from(new Set(allRuns().map((r) => r.agent)));
 
-/* ── Langfuse 엔티티 접근자 ──────────────────────────────────
-   전부 async 다. 실제 백엔드가 붙으면 본문만 fetch 로 바뀐다. */
+/* ── 파생 엔티티 접근자 ────────────────────────────────────
+   전부 async 다. 실제 백엔드가 붙으면 본문만 fetch 로 바뀐다.
+
+   한때 Langfuse 의 엔티티를 전부 흉내 냈다 (dataset·prompt·evaluator·queue·
+   user·thread). 그건 우리가 이길 수 없는 싸움이었고, 그 화면들에 쓴 시간은
+   아무도 하지 않는 것 — 코드 에이전트 세션 — 에 쓰지 않은 시간이었다.
+   남은 것은 코드 에이전트를 보는 데 실제로 필요한 것들뿐이다. */
 
 export async function listSessions() {
   const { buildSessions } = await import("@/lib/entities");
@@ -465,40 +478,17 @@ export async function listSessions() {
 export async function getSession(id: string) {
   return (await listSessions()).find((s) => s.id === id);
 }
-export async function listUsers() {
-  const { buildUsers } = await import("@/lib/entities");
-  return buildUsers();
-}
-export async function getUser(id: string) {
-  return (await listUsers()).find((u) => u.id === id);
-}
-export async function listScores() {
-  const { buildScores } = await import("@/lib/entities");
-  return buildScores();
-}
+/**
+ * 한 트레이스에 붙은 스코어.
+ *
+ * 스코어 **브라우징 화면은 없앴다** — LLM judge 를 등록해 점수를 매기는 화면은
+ * "판정에 모델을 쓰지 않는다"는 이 제품의 주장과 정면으로 모순됐다.
+ * 다만 SDK 로 들어온 스코어를 트레이스 옆에 보여 주는 것은 남긴다: 그건 우리가
+ * 만든 판단이 아니라 사용자가 보낸 사실이다.
+ */
 export async function scoresForTrace(traceId: string) {
-  return (await listScores()).filter((s) => s.traceId === traceId);
-}
-export async function listDatasets() {
-  const { buildDatasets } = await import("@/lib/entities");
-  const { loadResources } = await import("@/lib/resource-store");
-  return loadResources("datasets", buildDatasets());
-}
-export async function getDataset(id: string) {
-  return (await listDatasets()).find((d) => d.id === id);
-}
-export async function listPrompts() {
-  const { buildPrompts } = await import("@/lib/entities");
-  const { loadResources } = await import("@/lib/resource-store");
-  return loadResources("prompts", buildPrompts());
-}
-export async function getPrompt(name: string) {
-  return (await listPrompts()).find((p) => p.name === name);
-}
-export async function listEvaluators() {
-  const { buildEvaluators } = await import("@/lib/entities");
-  const { loadResources } = await import("@/lib/resource-store");
-  return loadResources("evaluators", buildEvaluators());
+  const { buildScores } = await import("@/lib/entities");
+  return buildScores().filter((s) => s.traceId === traceId);
 }
 /** 세션 간 반복에서 스킬 후보를 뽑는다. LLM 을 쓰지 않는다. */
 export async function listSkillCandidates(project?: string) {
@@ -508,24 +498,6 @@ export async function listSkillCandidates(project?: string) {
   );
 }
 
-export async function listThreads() {
-  const { buildThreads } = await import("@/lib/entities");
-  return buildThreads();
-}
-
-export async function getThread(id: string) {
-  const { buildThreads } = await import("@/lib/entities");
-  return buildThreads().find((x) => x.id === id);
-}
-
-export async function listQueues() {
-  const { buildQueues } = await import("@/lib/entities");
-  const { loadResources } = await import("@/lib/resource-store");
-  return loadResources("queues", buildQueues());
-}
-export async function getQueue(id: string) {
-  return (await listQueues()).find((q) => q.id === id);
-}
 export async function getTimeSeries(days = 14) {
   const { buildTimeSeries } = await import("@/lib/entities");
   return buildTimeSeries(days);

@@ -24,7 +24,7 @@ export default async function SessionDetailPage(props: PageProps<"/sessions/[ses
         <Card>
           <KeyValue
             rows={[
-              { k: t("users.userId"), v: session.userId ?? "—", mono: true },
+              { k: t("sessions.userId"), v: session.userId ?? "—", mono: true },
               { k: t("sessions.traceCount"), v: String(session.traceIds.length) },
               { k: t("sessions.duration"), v: fmtDuration(session.durationMs) },
             ]}

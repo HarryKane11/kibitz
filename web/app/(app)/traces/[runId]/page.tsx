@@ -1,3 +1,5 @@
+import { BrandOrNothing } from "@/components/brand";
+import { brandForModel, brandForSource } from "@/lib/brand";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, TriangleAlert } from "lucide-react";
@@ -65,6 +67,18 @@ export default async function RunSummaryPage(props: PageProps<"/traces/[runId]">
               구분은 가운뎃점 하나로 충분하다 — 상태와 경고만 색을 얻는다.
             */}
             <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-xs text-fg-2">
+              {/* 런타임을 맨 앞에 둔다 — 아래 숫자들을 어떤 눈으로 읽어야 하는지가
+                  먼저 정해져야 한다. Claude Code 세션의 40분과 프로덕션 SDK 런의
+                  40분은 같은 40분이 아니다. */}
+              {run.source && (
+                <>
+                  <span className="flex items-center gap-1.5">
+                    <BrandOrNothing name={brandForSource(run.source)} className="h-3 w-3" />
+                    {run.source}
+                  </span>
+                  <Sep />
+                </>
+              )}
               {/* 아직 돌고 있으면 판정보다 그 사실이 먼저다 — 지금 보는 숫자가
                   최종값이 아니라는 뜻이므로 */}
               {run.open ? (
@@ -99,7 +113,10 @@ export default async function RunSummaryPage(props: PageProps<"/traces/[runId]">
                 {fmtUsd(run.costUsd)}
               </span>
               <Sep />
-              <span>{run.model}</span>
+              <span className="inline-flex items-center gap-1.5">
+                <BrandOrNothing name={brandForModel(run.model)} className="h-3 w-3 opacity-70" />
+                {run.model}
+              </span>
               <Sep />
               <span className="text-fg-3">{relTime(run.startedAt, t)}</span>
               {run.humanInterventions > 0 && (
@@ -131,15 +148,14 @@ export default async function RunSummaryPage(props: PageProps<"/traces/[runId]">
                     {run.sessionId}
                   </Link>
                 )}
+                {/* userId 는 SDK 가 보내면 그대로 보여 준다. 링크는 걸지 않는다 —
+                    최종 사용자별 화면은 없앴다. 코드 에이전트를 보는 도구에서
+                    "사용자"는 대개 나 하나이고, 그 화면은 Langfuse 를 흉내 낸
+                    것이었다. 값 자체는 필터로 쓸 수 있으므로 남긴다. */}
                 {run.userId && (
                   <>
                     {run.sessionId && <Sep />}
-                    <Link
-                      href={`/users/${encodeURIComponent(run.userId)}`}
-                      className="underline decoration-line-2 underline-offset-2 transition-colors hover:text-fg-2"
-                    >
-                      {run.userId}
-                    </Link>
+                    <span>{run.userId}</span>
                   </>
                 )}
                 {(run.tags ?? []).map((tag) => (
@@ -175,7 +191,7 @@ export default async function RunSummaryPage(props: PageProps<"/traces/[runId]">
         {scores.length > 0 && (
           <section className="mb-7">
             <h2 className="mb-2 text-[11px] font-semibold tracking-wide text-fg-3 uppercase">
-              {t("scores.title")}
+              {t("traces.scoresTitle")}
             </h2>
             <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 border-t border-hair pt-2">
               {scores.map((s) => (

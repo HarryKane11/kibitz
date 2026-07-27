@@ -44,8 +44,18 @@ function parseCall(call: string): { tool: string; value: string; truncated: bool
   const inner = call.slice(open + 1, call.lastIndexOf(")"));
   const eq = inner.indexOf('="');
   if (eq < 0) return { tool, value: "", truncated: false };
-  const raw = inner.slice(eq + 2).replace(/"$/, "");
-  const truncated = raw.endsWith("…");
+
+  // **첫 인자에서 멈춘다.** 예전에는 `="` 뒤를 끝까지 가져갔다. 그래서
+  // `Edit(file_path="src/a/gateway.ts", old="legacyFetch", new="httpClient")` 의
+  // 값이 `src/a/gateway.ts", old="legacyFetch", new="httpClient` 이 되고,
+  // 거기서 basename 을 뽑으니 시그니처가 인자 파편이 됐다. 화면에서는 길어서
+  // 잘려 보였을 뿐이지만, 이 문자열이 사용자의 AGENTS.md 로 들어가는 순간
+  // 그건 우리가 만들어 낸 헛소리를 남의 설정 파일에 심는 일이 된다.
+  const after = inner.slice(eq + 2);
+  const close = after.indexOf('"');
+  // 닫는 따옴표가 없으면 인제스터가 56자에서 자른 것이다 — 그때는 남은 전부가 값이다.
+  const raw = close < 0 ? after : after.slice(0, close);
+  const truncated = raw.endsWith("…") || close < 0;
   return { tool, value: raw.replace(/…$/, ""), truncated };
 }
 

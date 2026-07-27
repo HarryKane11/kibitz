@@ -48,7 +48,7 @@ export async function SiteHeader() {
               </Link>
             ))}
             <Link
-              href="/dashboard"
+              href="/usage"
               className="ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line px-4 text-sm font-semibold text-fg transition-colors hover:border-line-3 focus-visible:ring-2"
             >
               {t("landing.openApp")}
@@ -75,7 +75,7 @@ export async function SiteHeader() {
                   </Link>
                 ))}
                 <Link
-                  href="/dashboard"
+                  href="/usage"
                   className="mt-1 flex min-h-11 items-center justify-between rounded-md border border-line px-3 text-sm font-semibold"
                 >
                   {t("landing.openApp")}
