@@ -4,7 +4,7 @@ import { ArrowRight, TriangleAlert } from "lucide-react";
 import { getRun, scoresForTrace, sumCounterfactuals } from "@/lib/data";
 import { FAILURE_RULE } from "@/lib/types";
 import { getT } from "@/lib/i18n";
-import { Crumbs, Chip, Card } from "@/components/page";
+import { Crumbs, Card } from "@/components/page";
 import {
   EvidenceList,
   PhaseAccuracy,
@@ -14,7 +14,7 @@ import {
 import { ExecutionPath } from "@/components/execution-path";
 import { Provenance } from "@/components/provenance";
 import { AnalysisDemoNotice, AnalysisPanel } from "@/components/analysis-panel";
-import { briefPreview, providerStatuses } from "@/lib/analysis/run";
+import { briefPreview, providerStatuses, savedAnalyses } from "@/lib/analysis/run";
 import { isPublicSite } from "@/lib/deploy";
 import {
   STATUS_TEXT,
@@ -36,7 +36,12 @@ export default async function RunSummaryPage(props: PageProps<"/traces/[runId]">
   const scores = await scoresForTrace(run.id);
   // 제공자 상태는 환경변수만 본다 (probe=false). ollama 를 여기서 물어보면
   // 떠 있지 않은 ollama 를 기다리느라 이 화면이 늦어진다 — 고를 때 물어본다.
-  const [providers, briefs] = await Promise.all([providerStatuses(), briefPreview(run.id)]);
+  const [providers, briefs, analyses] = await Promise.all([
+    providerStatuses(),
+    briefPreview(run.id),
+    // 저장된 분석. 새로고침해도 남아 있어야 한다.
+    savedAnalyses(run.id),
+  ]);
   // 공개 배포에서는 이 패널로 분석을 돌릴 수 없다. 어느 쪽을 그릴지는 서버가 정한다.
   const demo = isPublicSite();
 
@@ -54,62 +59,93 @@ export default async function RunSummaryPage(props: PageProps<"/traces/[runId]">
               <span className="text-fg-2">{run.titleTail}</span>
             </h1>
 
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              <Chip>{t("traces.turnCount", { n: run.turns.length })}</Chip>
-              <Chip>{fmtDuration(run.durationMs, t)}</Chip>
+            {/*
+              계측값은 pill 이 아니라 한 줄이다. 값 아홉 개에 테두리 아홉 개를 두르면
+              눈이 값보다 테두리를 먼저 세고, 그게 "만들다 만" 느낌의 큰 원인이다.
+              구분은 가운뎃점 하나로 충분하다 — 상태와 경고만 색을 얻는다.
+            */}
+            <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-xs text-fg-2">
+              {/* 아직 돌고 있으면 판정보다 그 사실이 먼저다 — 지금 보는 숫자가
+                  최종값이 아니라는 뜻이므로 */}
+              {run.open ? (
+                <span className="flex items-center gap-1.5 text-warn">
+                  <span
+                    aria-hidden
+                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-warn motion-reduce:animate-none"
+                  />
+                  {t("live.openRun")}
+                </span>
+              ) : (
+                <span className={STATUS_TEXT[run.status]}>{t(`status.${run.status}`)}</span>
+              )}
+              <Sep />
+              <span>{t("traces.turnCount", { n: run.turns.length })}</span>
+              <Sep />
+              <span>{fmtDuration(run.durationMs, t)}</span>
               {/* 대기 시간은 지연에 섞지 않고 따로 말한다 — 섞으면 둘 다 거짓이 된다 */}
               {(run.idleMs ?? 0) > 60_000 && (
-                <span
-                  title={t("traces.idleNote")}
-                  className="rounded-full border border-dashed border-line-2 px-2.5 py-0.5 text-xs font-medium text-fg-3"
-                >
-                  {t("traces.idleTime")} {fmtDuration(run.idleMs!, t)}
-                </span>
+                <>
+                  <Sep />
+                  <span className="text-fg-3" title={t("traces.idleNote")}>
+                    {t("traces.idleTime")} {fmtDuration(run.idleMs!, t)}
+                  </span>
+                </>
               )}
-              <Chip>{fmtTokens(run.totalTokens)}</Chip>
+              <Sep />
+              <span>{fmtTokens(run.totalTokens)}</span>
+              <Sep />
               <span title={run.costEstimated ? t("traces.estimatedCost") : undefined}>
-                <Chip>
-                  {run.costEstimated ? "≈" : ""}
-                  {fmtUsd(run.costUsd)}
-                </Chip>
+                {run.costEstimated ? "≈" : ""}
+                {fmtUsd(run.costUsd)}
               </span>
-              {run.truncation && (
-                <Chip tone="warn">
-                  {t("traces.truncated", {
-                    captured: run.truncation.captured,
-                    available: run.truncation.available,
-                  })}
-                </Chip>
-              )}
+              <Sep />
+              <span>{run.model}</span>
+              <Sep />
+              <span className="text-fg-3">{relTime(run.startedAt, t)}</span>
               {run.humanInterventions > 0 && (
-                <Chip>{t("traces.humanCount", { n: run.humanInterventions })}</Chip>
+                <>
+                  <Sep />
+                  <span>{t("traces.humanCount", { n: run.humanInterventions })}</span>
+                </>
               )}
-              <Chip>{run.model}</Chip>
-              <Chip>{relTime(run.startedAt, t)}</Chip>
-              <span
-                className={cn(
-                  "rounded-full border border-line px-2.5 py-0.5 text-xs font-medium",
-                  STATUS_TEXT[run.status],
-                )}
-              >
-                {t(`status.${run.status}`)}
-              </span>
+              {run.truncation && (
+                <>
+                  <Sep />
+                  <span className="text-warn">
+                    {t("traces.truncated", {
+                      captured: run.truncation.captured,
+                      available: run.truncation.available,
+                    })}
+                  </span>
+                </>
+              )}
             </div>
 
             {(run.sessionId || run.userId || (run.tags ?? []).length > 0) && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-xs text-fg-3">
                 {run.sessionId && (
-                  <Link href={`/sessions/${encodeURIComponent(run.sessionId)}`}>
-                    <Chip>{run.sessionId}</Chip>
+                  <Link
+                    href={`/sessions/${encodeURIComponent(run.sessionId)}`}
+                    className="underline decoration-line-2 underline-offset-2 transition-colors hover:text-fg-2"
+                  >
+                    {run.sessionId}
                   </Link>
                 )}
                 {run.userId && (
-                  <Link href={`/users/${encodeURIComponent(run.userId)}`}>
-                    <Chip>{run.userId}</Chip>
-                  </Link>
+                  <>
+                    {run.sessionId && <Sep />}
+                    <Link
+                      href={`/users/${encodeURIComponent(run.userId)}`}
+                      className="underline decoration-line-2 underline-offset-2 transition-colors hover:text-fg-2"
+                    >
+                      {run.userId}
+                    </Link>
+                  </>
                 )}
                 {(run.tags ?? []).map((tag) => (
-                  <Chip key={tag}>{tag}</Chip>
+                  <span key={tag} className="rounded-sm bg-fill px-1.5 py-0.5">
+                    {tag}
+                  </span>
                 ))}
               </div>
             )}
@@ -266,11 +302,25 @@ export default async function RunSummaryPage(props: PageProps<"/traces/[runId]">
             {demo ? (
               <AnalysisDemoNotice />
             ) : (
-              <AnalysisPanel runId={run.id} providers={providers} briefs={briefs} />
+              <AnalysisPanel
+                runId={run.id}
+                providers={providers}
+                briefs={briefs}
+                saved={analyses}
+              />
             )}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+/** 값 사이의 가운뎃점. 구분선을 상자로 만들지 않기 위한 것. */
+function Sep() {
+  return (
+    <span aria-hidden className="text-line-3">
+      ·
+    </span>
   );
 }

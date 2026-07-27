@@ -11,7 +11,7 @@ import { useT } from "@/components/i18n-provider";
 import type { MessageKey } from "@/lib/i18n/shared";
 import { fmtDuration, fmtUsd, turnResult, turnTitle } from "@/lib/verdict";
 import { ContextXray, EvidenceList, SavingsChips } from "@/components/viz";
-import { JourneyMap } from "@/components/journey-map";
+import { ExecutionPath } from "@/components/execution-path";
 import { ContextStream } from "@/components/context-stream";
 import { RunTree, type TreeMode, type TreeScope } from "@/components/run-tree";
 import { SplitPane } from "@/components/split-pane";
@@ -92,7 +92,7 @@ export function TraceExplorer({ run }: { run: Run }) {
           </div>
 
           {overview === "journey" ? (
-            <JourneyMap turns={turns} selected={sel} onSelect={setSel} />
+            <ExecutionPath turns={turns} selected={sel} onSelect={setSel} />
           ) : (
             <ContextStream turns={turns} selected={sel} onSelect={setSel} />
           )}

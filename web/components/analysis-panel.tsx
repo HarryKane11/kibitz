@@ -5,11 +5,17 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown, LogIn, Sparkles, TriangleAlert } from "lucide-react";
 import {
   analyzeTrace,
+  forgetAnalysis,
+  listAnalyses,
   pollCodeAgentLogin,
   refreshProviders,
   startCodeAgentLogin,
 } from "@/lib/analysis/actions";
-import type { AnalyzeOutcome, ProviderStatus } from "@/lib/analysis/catalog";
+import type {
+  AnalyzeOutcome,
+  ProviderStatus,
+  SavedAnalysis,
+} from "@/lib/analysis/catalog";
 import { useT } from "@/components/i18n-provider";
 import { Card } from "@/components/page";
 import { cn } from "@/lib/utils";
@@ -29,10 +35,13 @@ export function AnalysisPanel({
   runId,
   providers: initialProviders,
   briefs,
+  saved: initialSaved = [],
 }: {
   runId: string;
   providers: ProviderStatus[];
   briefs: { full: string; redacted: string };
+  /** 저장된 분석. 새로고침해도 남아 있어야 한다. */
+  saved?: SavedAnalysis[];
 }) {
   const t = useT();
   const [providers, setProviders] = useState(initialProviders);
@@ -45,7 +54,9 @@ export function AnalysisPanel({
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [redact, setRedact] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
-  const [result, setResult] = useState<AnalyzeOutcome | null>(null);
+  /** 실패는 화면에만 남는다 — 저장할 가치가 없다. 성공은 디스크에서 온다. */
+  const [failure, setFailure] = useState<Extract<AnalyzeOutcome, { ok: false }> | null>(null);
+  const [saved, setSaved] = useState<SavedAnalysis[]>(initialSaved);
   const [loginState, setLoginState] = useState<{
     provider: string;
     pending: boolean;
@@ -71,7 +82,7 @@ export function AnalysisPanel({
 
   const pick = (id: string) => {
     setProvider(id);
-    setResult(null);
+    setFailure(null);
     // ollama 는 로컬이라 "설정됨"이 곧 "떠 있음"이다. 고를 때 실제로 물어본다 —
     // 페이지를 그릴 때마다 물으면 떠 있지 않은 ollama 를 매번 기다리게 된다.
     if (id === "ollama" && providers.find((p) => p.id === id)?.models === undefined) {
@@ -88,15 +99,21 @@ export function AnalysisPanel({
 
   const run = () => {
     startTransition(async () => {
-      setResult(
-        await analyzeTrace({
-          runId,
-          provider,
-          model: model.trim(),
-          apiKey: needsPastedKey ? key.trim() : undefined,
-          redactArgs: redact,
-        }),
-      );
+      const outcome = await analyzeTrace({
+        runId,
+        provider,
+        model: model.trim(),
+        apiKey: needsPastedKey ? key.trim() : undefined,
+        redactArgs: redact,
+      });
+      if (outcome.ok) {
+        setFailure(null);
+        // 저장된 목록을 디스크에서 다시 읽는다. 응답을 그대로 화면에 얹으면
+        // 저장된 것과 보이는 것이 어긋날 수 있고, 그 차이는 새로고침 때 드러난다.
+        setSaved(await listAnalyses(runId));
+      } else {
+        setFailure(outcome);
+      }
     });
   };
 
@@ -332,29 +349,38 @@ export function AnalysisPanel({
         )}
       </Card>
 
-      {result && !result.ok && (
+      {failure && (
         <div className="mt-3 rounded-lg border border-crit/40 bg-crit/[0.055] p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-crit">
             <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {t("analysis.failed")}
           </p>
           <p className="mt-1.5 font-mono text-xs leading-relaxed break-words text-fg-2">
-            {result.error}
+            {failure.error}
           </p>
-          {result.raw && (
+          {failure.raw && (
             <>
               <p className="mt-3 text-[11px] font-medium tracking-wide text-fg-3 uppercase">
                 {t("analysis.rawLabel")}
               </p>
               <pre className="mt-1 max-h-40 overflow-auto rounded-sm border border-hair bg-ink-750 px-3 py-2 font-mono text-[11px] whitespace-pre-wrap text-fg-3">
-                {result.raw}
+                {failure.raw}
               </pre>
             </>
           )}
         </div>
       )}
 
-      {result?.ok && <Result runId={runId} result={result} />}
+      {/* 저장된 분석. 최신이 위, 최신만 펼친 상태로 시작한다. */}
+      {saved.map((record, i) => (
+        <Result
+          key={record.id}
+          runId={runId}
+          record={record}
+          defaultOpen={i === 0}
+          onForget={async () => setSaved(await forgetAnalysis(runId, record.id))}
+        />
+      ))}
     </section>
   );
 }
@@ -394,21 +420,55 @@ export function AnalysisDemoNotice() {
 
 function Result({
   runId,
-  result,
+  record,
+  defaultOpen,
+  onForget,
 }: {
   runId: string;
-  result: Extract<AnalyzeOutcome, { ok: true }>;
+  record: SavedAnalysis;
+  defaultOpen: boolean;
+  onForget: () => void;
 }) {
   const t = useT();
+  const [open, setOpen] = useState(defaultOpen);
+  // 저장된 레코드가 곧 결과다. 아래 렌더는 그대로 쓴다.
+  const result = record;
 
   return (
     <div className="mt-3">
       {/* 이 블록이 다른 곳과 다른 종류의 것임을 먼저 말한다 */}
-      <div className="flex flex-wrap items-center gap-2 rounded-t-lg border border-b-0 border-dashed border-line bg-ink-750 px-4 py-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-2 border border-dashed border-line bg-ink-750 px-4 py-2",
+          open ? "rounded-t-lg border-b-0" : "rounded-lg",
+        )}
+      >
+        <button
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          title={t("analysis.toggle")}
+          className="flex items-center text-fg-3 transition-colors duration-100 hover:text-fg-2"
+        >
+          <ChevronDown
+            className={cn("h-3 w-3 transition-transform duration-100", !open && "-rotate-90")}
+            aria-hidden
+          />
+          <span className="sr-only">{t("analysis.toggle")}</span>
+        </button>
         <span className="rounded-full bg-warn/15 px-2 py-0.5 text-[11px] font-semibold text-warn">
           {t("analysis.unverified")}
         </span>
-        <span className="font-mono text-[11px] text-fg-3">
+        {/* 언제 쓴 글인지가 라벨 옆에 있어야 6개월 뒤에도 계산된 판정과 헷갈리지 않는다 */}
+        <time dateTime={record.createdAt} className="font-mono text-[11px] text-fg-3">
+          {new Date(record.createdAt).toLocaleString()}
+        </time>
+        <button
+          onClick={onForget}
+          className="ml-auto rounded-full border border-line px-2 py-0.5 text-[11px] text-fg-3 transition-colors duration-100 hover:border-crit/50 hover:text-crit active:scale-[0.97]"
+        >
+          {t("analysis.forget")}
+        </button>
+        <span className="w-full font-mono text-[11px] text-fg-3">
           {result.model}
           {result.usage &&
             ` · ${t("analysis.usage", {
@@ -420,6 +480,7 @@ function Result({
         </span>
       </div>
 
+      {open && (
       <div className="rounded-b-lg border border-dashed border-line p-5">
         {result.summary && (
           <p className="mb-4 max-w-3xl text-sm leading-relaxed text-fg-2">{result.summary}</p>
@@ -479,8 +540,10 @@ function Result({
         <p className="mt-4 border-t border-hair pt-3 font-mono text-[11px] text-fg-3">
           {t("analysis.citationCheck")} · {result.citationRule}
           {!result.schemaEnforced && ` · ${t("analysis.bestEffortSchema")}`}
+          {` · ${t("analysis.savedNote")}`}
         </p>
       </div>
+      )}
     </div>
   );
 }

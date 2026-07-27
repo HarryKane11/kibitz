@@ -185,6 +185,26 @@ export interface AnalyzeFail {
 
 export type AnalyzeOutcome = AnalyzeOk | AnalyzeFail;
 
+/**
+ * 저장된 분석 하나.
+ *
+ * `createdAt`·`provider`·`model` 이 반드시 붙는다 — 6개월 뒤에 이 글을 보는 사람이
+ * "언제 어느 모델이 썼나"를 알 수 있어야 계산된 판정과 혼동하지 않는다.
+ */
+export interface SavedAnalysis {
+  id: string;
+  runId: string;
+  createdAt: string;
+  provider: string;
+  model: string;
+  usage: { input: number; output: number } | null;
+  schemaEnforced: boolean;
+  citationRule: string;
+  summary: string;
+  suggestions: AnalyzeSuggestion[];
+  brief: { chars: number; verdicts: number; redacted: boolean };
+}
+
 export interface CliLoginStart {
   ok: boolean;
   sessionId?: string;

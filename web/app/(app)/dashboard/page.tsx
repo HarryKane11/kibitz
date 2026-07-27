@@ -94,7 +94,7 @@ export default async function DashboardPage() {
 
       <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
         <div className="min-w-0">
-          <div className="mb-4 flex items-baseline justify-between gap-4">
+          <div className="mb-2 flex items-baseline justify-between gap-4">
             <h2 className="text-base font-semibold tracking-tight">
               {t("dashboard.needsAttention")}
             </h2>
@@ -112,12 +112,12 @@ export default async function DashboardPage() {
               {t("common.noData")}
             </Card>
           ) : (
-            <ul className="flex min-w-0 flex-col gap-1.5">
+            <ul className="min-w-0 border-t border-hair">
               {troubled.map((run) => (
                 <li key={run.id}>
                   <Link
                     href={`/traces/${run.id}`}
-                    className="flex min-h-20 min-w-0 items-center gap-3 rounded-md border border-hair px-3 py-3.5 transition-colors hover:border-line-2 hover:bg-hover focus-visible:ring-2 sm:gap-5 sm:px-4"
+                    className="flex min-w-0 items-center gap-3 border-b border-hair px-3 py-2.5 transition-colors hover:bg-hover focus-visible:ring-2 sm:gap-4"
                   >
                     <TriangleAlert
                       className={cn(
@@ -127,11 +127,11 @@ export default async function DashboardPage() {
                       aria-hidden
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-medium">
+                      <p className="truncate text-sm font-medium">
                         {run.title}
                         <span className="text-fg-2">{run.titleTail}</span>
                       </p>
-                      <p className="mt-1 flex flex-wrap gap-2.5 text-xs text-fg-3">
+                      <p className="mt-0.5 flex flex-wrap gap-2.5 text-[11px] text-fg-3">
                         <span className="font-mono">{run.agent}</span>
                         <span>{relTime(run.startedAt)}</span>
                         <span>{fmtDuration(run.durationMs)}</span>
@@ -145,7 +145,7 @@ export default async function DashboardPage() {
                     </div>
                     <p
                       className={cn(
-                        "w-14 shrink-0 text-right text-lg font-semibold tabular-nums",
+                        "w-12 shrink-0 text-right text-sm font-semibold tabular-nums",
                         run.score.accuracy < 70 ? "text-crit" : "text-fg",
                       )}
                     >
@@ -160,9 +160,9 @@ export default async function DashboardPage() {
 
         <Card>
           <h2 className="text-sm font-semibold">{t("dashboard.topFailures")}</h2>
-          <ul className="mt-4 divide-y divide-hair">
+          <ul className="mt-3 divide-y divide-hair">
             {clusters.slice(0, 4).map((cluster, index) => (
-              <li key={cluster.kind} className="py-4 first:pt-0 last:pb-0">
+              <li key={cluster.kind} className="py-3 first:pt-0 last:pb-0">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{t(`note.${cluster.kind}`)}</p>

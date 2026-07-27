@@ -2,6 +2,7 @@ import "server-only";
 import { getRun } from "@/lib/data";
 import { getLocale } from "@/lib/i18n";
 import { acceptsPastedKeys } from "@/lib/deploy";
+import { loadAnalyses, saveAnalysis } from "@/lib/analysis/store";
 import { briefText, buildBrief } from "@/lib/analysis/brief";
 import {
   PROVIDERS,
@@ -131,6 +132,11 @@ export async function providerStatuses(probeOllama = false): Promise<ProviderSta
   );
 }
 
+/** 이 트레이스에 저장된 분석. 화면이 새로고침 후에도 그대로 보여 준다. */
+export async function savedAnalyses(runId: string) {
+  return loadAnalyses(runId);
+}
+
 export async function runAnalysis(input: AnalyzeInput): Promise<AnalyzeOutcome> {
   const spec = providerSpec(input.provider);
   if (!spec) {
@@ -188,7 +194,7 @@ export async function runAnalysis(input: AnalyzeInput): Promise<AnalyzeOutcome> 
 
   try {
     const suggestions = parseSuggestions(result.text, brief);
-    return {
+    const outcome: AnalyzeOutcome = {
       ok: true,
       provider: spec.id,
       model: result.model,
@@ -199,6 +205,10 @@ export async function runAnalysis(input: AnalyzeInput): Promise<AnalyzeOutcome> 
       suggestions: suggestions.items,
       brief: { chars: sent.length, verdicts: brief.verdicts.length, redacted: brief.redacted },
     };
+    // 저장한다. 새로고침 한 번에 사용자가 돈과 시간을 들여 만든 것이 사라지면
+    // 그건 원칙이 아니라 버그다 (lib/analysis/store.ts 주석 참고).
+    if (outcome.ok) saveAnalysis(run.id, outcome, new Date().toISOString());
+    return outcome;
   } catch (err) {
     return {
       ok: false,

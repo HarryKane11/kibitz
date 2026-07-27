@@ -44,9 +44,9 @@ function scopedTokens(): Record<string, TokenScope> {
 }
 
 export function tokenScope(req: Request): TokenScope | null {
-  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!bearer) return null;
-  return scopedTokens()[bearer] ?? null;
+  const token = bearerOrBasic(req);
+  if (!token) return null;
+  return scopedTokens()[token] ?? null;
 }
 
 /** 읽기 토큰. project-scoped token은 해당 project의 API 결과만 볼 수 있다. */
@@ -55,8 +55,36 @@ export function authorizeRead(req: Request): NextResponse | null {
   if (scoped && ["read", "admin"].includes(scoped.role)) return null;
   const expected = process.env.KIBITZ_READ_TOKEN;
   if (!expected && Object.keys(scopedTokens()).length === 0) return null;
-  if (req.headers.get("authorization") === `Bearer ${expected}`) return null;
+  if (bearerOrBasic(req) === expected) return null;
   return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+}
+
+/**
+ * Basic 인증도 받는다.
+ *
+ * Langfuse 로 계측한 코드는 OTLP exporter 헤더에 `Authorization: Basic <base64>` 를
+ * 넣는다. host 만 Kibitz 로 바꿔서 들어올 수 있어야 하므로, 그 형식의 비밀번호
+ * 부분(또는 사용자명 부분)이 우리 토큰과 같으면 통과시킨다.
+ */
+function bearerOrBasic(req: Request): string | null {
+  const header = req.headers.get("authorization");
+  if (!header) return null;
+  const bearer = header.match(/^Bearer\s+(.+)$/i);
+  if (bearer) return bearer[1].trim();
+  const basic = header.match(/^Basic\s+(.+)$/i);
+  if (!basic) return null;
+  try {
+    const decoded = Buffer.from(basic[1].trim(), "base64").toString("utf8");
+    const sep = decoded.indexOf(":");
+    if (sep < 0) return decoded;
+    // Langfuse 는 public:secret 을 쓴다. 어느 쪽이 우리 토큰일지 모르므로 둘 다 본다.
+    const user = decoded.slice(0, sep);
+    const pass = decoded.slice(sep + 1);
+    const expected = process.env.KIBITZ_INGEST_TOKEN;
+    return expected && user === expected ? user : pass;
+  } catch {
+    return null;
+  }
 }
 
 export function authorizeIngest(req: Request): NextResponse | null {
@@ -72,7 +100,7 @@ export function authorizeIngest(req: Request): NextResponse | null {
       { status: 401 },
     );
   }
-  if (req.headers.get("authorization") === `Bearer ${expected}`) return null;
+  if (bearerOrBasic(req) === expected) return null;
   return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 }
 

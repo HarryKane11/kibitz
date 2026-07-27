@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
  *   path    진행이 있었나        y = 이 턴까지 확보한 고유 레코드 (계측값)
  *   flame   시간이 어디로 갔나   x = 벽시계, y = 트리 깊이, 폭 = 소요시간
  *   tokens  돈이 어디로 갔나     y = 그 턴이 쓴 토큰
+ *   tools   어디서 돌았나        y = 도구 레인, 지그재그가 곧 왕복이다
+ *   phase   국면을 오갔나        y = plan·gather·reason·deliver
  *
  * 상호작용은 셋이 공유한다. 구현이 하나여야 렌즈를 바꿀 때 조작법이 바뀌지 않는다:
  *   - 포인터를 올리면 십자선과 카드. `<title>` 이 아니라 즉시 뜬다.
@@ -34,12 +36,14 @@ import { cn } from "@/lib/utils";
  * 그 자리에 트랜지션을 넣으면 도구가 느려진 것처럼 느껨진다.
  */
 
-export type Lens = "path" | "flame" | "tokens";
+export type Lens = "path" | "flame" | "tokens" | "tools" | "phase";
 
 const LENSES: { id: Lens; label: MessageKey; hint: MessageKey }[] = [
   { id: "path", label: "viz.lensPath", hint: "viz.lensPathHint" },
   { id: "flame", label: "viz.lensFlame", hint: "viz.lensFlameHint" },
   { id: "tokens", label: "viz.lensTokens", hint: "viz.lensTokensHint" },
+  { id: "tools", label: "viz.lensTools", hint: "viz.lensToolsHint" },
+  { id: "phase", label: "viz.lensPhase", hint: "viz.lensPhaseHint" },
 ];
 
 const W = 1000; // viewBox 폭. 실제 픽셀은 CSS 가 정한다.
@@ -173,6 +177,48 @@ export function ExecutionPath({
     if (runId) router.push(`/traces/${runId}/timeline?obs=${i}`);
   };
 
+  /**
+   * 도구 레인 — **부른 도구 전부**. 자주 부른 것부터 위로.
+   *
+   * 처음엔 상위 10개만 주고 나머지를 접었다. 현재 픽스처의 도구 수가 런당 5~9개라
+   * 그 자르기는 한 번도 발동하지 않았지만, MCP 서버를 붙인 Claude Code 는 도구가
+   * 30~60개가 되므로 언젠가 반드시 발동하고 그때 조용히 정보를 잃는다.
+   *
+   * 그래서 자르는 대신 **높이를 레인 수에 맞춘다** (아래 `plotH`). 레인 차트의
+   * 자연스러운 높이는 고정값이 아니라 레인 수의 함수다. 빈도순인 이유는 자주
+   * 오가는 짝이 서로 붙어야 왕복이 짧은 지그재그로 보이기 때문이다.
+   *
+   * `LANE_CAP` 은 병리적인 경우(도구 수백 개)의 안전장치이고, 걸리면 라벨이 말한다.
+   */
+  const toolLanes = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const v of view) {
+      if (!v.call) continue;
+      const tool = v.call.split("(")[0];
+      count.set(tool, (count.get(tool) ?? 0) + 1);
+    }
+    const ranked = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+    if (ranked.length <= LANE_CAP) return ranked;
+    return [...ranked.slice(0, LANE_CAP), OTHER_LANE];
+  }, [view]);
+
+  /**
+   * 레인 렌즈는 자기 높이를 갖는다. 나머지 셋은 기본 높이를 쓴다.
+   *
+   * 레인이 늘어날 때 고정 높이를 유지하면 각 레인이 6px 로 눌리고, 그 순간
+   * 차트가 아니라 무늬가 된다. 대신 세로로 늘리고, 너무 길어지면 스크롤한다.
+   */
+  const lanes = lens === "tools" ? toolLanes.length : lens === "phase" ? PHASE_LANES.length : 0;
+  const plotH = lanes > 0 ? Math.max(PLOT_H, lanes * ROW_UNITS) : PLOT_H;
+  const svgH = PAD_TOP + plotH + PAD_BOTTOM;
+
+  const laneOfTool = (v: Turn) => {
+    if (!v.call) return toolLanes.indexOf(OTHER_LANE);
+    const tool = v.call.split("(")[0];
+    const at = toolLanes.indexOf(tool);
+    return at >= 0 ? at : toolLanes.indexOf(OTHER_LANE);
+  };
+
   /** 세로축이 무엇을 재는지. 기준값 없는 차트는 장식이다. */
   const yLabel = useMemo(() => {
     if (view.length === 0) return "";
@@ -184,11 +230,12 @@ export function ExecutionPath({
         n: Math.max(...view.map((v) => v.tokens)).toLocaleString(),
       });
     }
+    if (lens === "tools") return t("viz.axisTools", { n: toolLanes.length });
+    if (lens === "phase") return t("viz.axisPhase");
     return t("viz.axisDepth");
-  }, [lens, view, t]);
+  }, [lens, view, t, toolLanes.length]);
 
   const hovered = hover !== null ? turns[hover] : null;
-  const active = hovered ?? (selected !== undefined ? turns[selected] : null);
 
   return (
     <div className={cn("w-full", className)}>
@@ -245,8 +292,12 @@ export function ExecutionPath({
         onDoubleClick={() => setZoom(null)}
       >
         <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className={cn("block h-[190px] w-full", drag ? "cursor-col-resize" : "cursor-crosshair")}
+          viewBox={`0 0 ${W} ${svgH}`}
+          // 레인 렌즈는 x(순서)와 y(범주) 둘 다 비율이 의미 없으므로 각각 늘려도 된다.
+          // 그 대신 마크를 rect 로 그린다 — circle 은 비균등 스케일에서 타원이 된다.
+          preserveAspectRatio={lanes > 0 ? "none" : undefined}
+          style={{ height: lanes > 0 ? `${Math.min(svgH * 1.15, 460)}px` : "190px" }}
+          className={cn("block w-full", drag ? "cursor-col-resize" : "cursor-crosshair")}
           role="img"
           aria-label={t("viz.pathAria")}
         >
@@ -255,6 +306,19 @@ export function ExecutionPath({
           )}
           {lens === "flame" && <FlameLens view={view} x={xTime} />}
           {lens === "tokens" && <TokensLens view={view} x={xIndex} step={step} />}
+          {lens === "tools" && (
+            <LaneLens view={view} x={xIndex} step={step} plotH={plotH} lanes={toolLanes} laneOf={laneOfTool} />
+          )}
+          {lens === "phase" && (
+            <LaneLens
+              view={view}
+              x={xIndex}
+              step={step}
+              plotH={plotH}
+              lanes={PHASE_LANES}
+              laneOf={(v) => PHASE_LANES.indexOf(v.phase)}
+            />
+          )}
 
           {/* 선택·hover 표시는 렌즈 위에 공통으로 얹는다 */}
           {selected !== undefined && selected >= lo && selected <= hi && (
@@ -262,7 +326,7 @@ export function ExecutionPath({
               x1={lens === "flame" ? xTime(turns[selected].startOffsetMs) : xIndex(selected - lo)}
               x2={lens === "flame" ? xTime(turns[selected].startOffsetMs) : xIndex(selected - lo)}
               y1={PAD_TOP - 6}
-              y2={H - PAD_BOTTOM + 6}
+              y2={PAD_TOP + plotH + 6}
               stroke="var(--color-sky)"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
@@ -273,7 +337,7 @@ export function ExecutionPath({
               x1={lens === "flame" ? xTime(turns[hover].startOffsetMs) : xIndex(hover - lo)}
               x2={lens === "flame" ? xTime(turns[hover].startOffsetMs) : xIndex(hover - lo)}
               y1={PAD_TOP - 6}
-              y2={H - PAD_BOTTOM + 6}
+              y2={PAD_TOP + plotH + 6}
               stroke="var(--line-3)"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
@@ -292,7 +356,7 @@ export function ExecutionPath({
                   : xIndex(drag.to - lo) - xIndex(drag.from - lo),
               )}
               y={PAD_TOP - 6}
-              height={PLOT_H + 12}
+              height={plotH + 12}
               fill="var(--color-sky)"
               fillOpacity={0.12}
               stroke="var(--color-sky)"
@@ -301,6 +365,11 @@ export function ExecutionPath({
             />
           )}
         </svg>
+
+        {/* 레인 이름. 마크를 가리지 않게 반투명 바탕에 얹는다. */}
+        {(lens === "tools" || lens === "phase") && (
+          <LaneLabels lanes={lens === "tools" ? toolLanes : PHASE_LANES} plotH={plotH} svgH={svgH} />
+        )}
 
         {/* hover 카드. HTML 이라 줄바꿈·굵기·정렬을 쓸 수 있다 —
             SVG `<title>` 은 1초를 기다려야 뜨고 서식이 없다. */}
@@ -328,9 +397,10 @@ export function ExecutionPath({
         </span>
       </div>
 
-      {active && (
+      {/* 카드가 떠 있으면 같은 내용을 두 번 쓰지 않는다. 이 줄은 선택 상태를 위한 것이다. */}
+      {!hovered && selected !== undefined && turns[selected] && (
         <p className="mt-1 truncate text-[11px] text-fg-3">
-          {t("viz.turnN", { n: hovered ? hover! : selected! })} · {turnTitle(active, t)}
+          {t("viz.turnN", { n: selected })} · {turnTitle(turns[selected], t)}
         </p>
       )}
     </div>
@@ -455,7 +525,9 @@ function FlameLens({ view, x }: { view: Turn[]; x: (ms: number) => number }) {
   };
 
   const rows = Math.max(1, ...view.map((v) => depthOf(v) + 1));
-  const rowH = Math.min(26, PLOT_H / rows);
+  // 행 높이에 상한을 두면 깊이가 1~2일 때 그림이 위쪽에 몰리고 아래가 빈다.
+  // 빈 공간은 "데이터가 없다"로 읽히므로 있는 만큼 채운다.
+  const rowH = PLOT_H / rows;
 
   return (
     <>
@@ -538,6 +610,144 @@ function TokensLens({
   );
 }
 
+/* ── 렌즈 4·5: 레인 ─────────────────────────────────────────────
+   같은 구현이 도구와 국면을 모두 그린다. 레인 뜻만 다르고 읽는 법은 같아야 한다 —
+   렌즈를 바꿀 때 조작법이 바뀌면 그건 다섯 개의 다른 차트다. */
+
+const OTHER_LANE = "…";
+const PHASE_LANES = ["plan", "gather", "reason", "deliver"] as const;
+/** 레인 하나의 높이 (viewBox 단위). 라벨 10px + 여백이 들어갈 최소치. */
+const ROW_UNITS = 22;
+/** 병리적인 경우의 안전장치. 걸리면 라벨이 접혔다고 말한다. */
+const LANE_CAP = 40;
+
+/**
+ * 피아노 롤. x = 관측 순서, y = 레인.
+ *
+ * 왕복이 **지그재그로 보인다** — `Edit → Read → Edit` 는 두 레인 사이를 오가는 선이
+ * 되고, 그건 설명 없이 읽힌다. 진행 곡선은 "얻은 것이 없다"까지만 말하고
+ * 무엇을 되풀이했는지는 말하지 않는다.
+ *
+ * 마크가 circle 이 아니라 rect 인 이유: 이 렌즈는 x·y 를 각각 늘리므로
+ * (`preserveAspectRatio="none"`) 원이 타원으로 찌그러진다.
+ */
+function LaneLens({
+  view,
+  x,
+  step,
+  plotH,
+  lanes,
+  laneOf,
+}: {
+  view: Turn[];
+  x: (k: number) => number;
+  step: number;
+  plotH: number;
+  lanes: readonly string[];
+  laneOf: (v: Turn) => number;
+}) {
+  const rows = Math.max(1, lanes.length);
+  const rowH = plotH / rows;
+  const cy = (lane: number) => PAD_TOP + lane * rowH + rowH / 2;
+  // 마크 크기는 x 는 간격, y 는 레인 높이에 맞춘다 — 둘의 스케일이 다르므로 따로 정한다.
+  const mw = Math.max(1.4, Math.min(9, step * 0.55));
+  const mh = Math.max(3, Math.min(9, rowH * 0.42));
+
+  // 레인이 촘촘하면 잇는 선이 오히려 덩어리가 된다. 성기면 이동이 보여야 한다.
+  const link = view.length <= 260;
+
+  return (
+    <>
+      {lanes.map((_, i) => (
+        <line
+          key={i}
+          x1={PAD_L}
+          x2={W - PAD_R}
+          y1={cy(i)}
+          y2={cy(i)}
+          stroke="var(--hair)"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+
+      {link &&
+        view.slice(1).map((v, k) => {
+          const a = laneOf(view[k]);
+          const b = laneOf(v);
+          if (a < 0 || b < 0) return null;
+          return (
+            <line
+              key={`l${v.index}`}
+              x1={x(k)}
+              y1={cy(a)}
+              x2={x(k + 1)}
+              y2={cy(b)}
+              stroke="var(--line-2)"
+              strokeWidth={1}
+              // 같은 레인에 머무르는 구간은 흐리게 — 이동이 도드라져야 한다
+              strokeOpacity={a === b ? 0.4 : 1}
+              vectorEffect="non-scaling-stroke"
+            />
+          );
+        })}
+
+      {view.map((v, k) => {
+        const lane = laneOf(v);
+        if (lane < 0) return null;
+        const flagged = v.verdict !== "good";
+        const w = flagged ? mw * 1.5 : mw;
+        const h = flagged ? mh * 1.4 : mh;
+        return (
+          <rect
+            key={v.index}
+            x={x(k) - w / 2}
+            y={cy(lane) - h / 2}
+            width={w}
+            height={h}
+            rx={Math.min(1.5, w / 2)}
+            fill={verdictColor(v)}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+/** 레인 이름. SVG 안에 넣으면 폭에 따라 글자가 늘어나므로 HTML 로 겹쳐 놓는다. */
+function LaneLabels({
+  lanes,
+  plotH,
+  svgH,
+}: {
+  lanes: readonly string[];
+  plotH: number;
+  svgH: number;
+}) {
+  const t = useT();
+  const rows = Math.max(1, lanes.length);
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0"
+      style={{ top: `${(PAD_TOP / svgH) * 100}%`, height: `${(plotH / svgH) * 100}%` }}
+    >
+      {lanes.map((name, i) => (
+        <span
+          key={`${name}-${i}`}
+          className="absolute left-1 max-w-[42%] truncate rounded-sm bg-ink-750/80 px-1 font-mono text-[10px] leading-none text-fg-3"
+          style={{ top: `${((i + 0.5) / rows) * 100}%`, transform: "translateY(-50%)" }}
+        >
+          {name === OTHER_LANE
+            ? t("viz.laneOther")
+            : (PHASE_LANES as readonly string[]).includes(name)
+              ? t(`phase.${name}` as MessageKey)
+              : name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /* ── hover 카드 ─────────────────────────────────────────────── */
 
 function HoverCard({
@@ -562,7 +772,7 @@ function HoverCard({
       }
     >
       <div className="flex items-baseline gap-2">
-        <span className="font-mono text-[11px] text-fg-3">
+        <span className="shrink-0 font-mono text-[11px] text-fg-3">
           {t("viz.turnN", { n: index })}
         </span>
         <span

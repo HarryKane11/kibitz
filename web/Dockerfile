@@ -12,7 +12,9 @@
 # 빌드 시점에는 빈 샘플이 들어간다 — 컨테이너를 배포하면 그 안의 것이 그대로 나가므로.
 # 실제 데이터는 볼륨으로 마운트한다 (docs/self-hosting.md 참고).
 
-FROM node:22-alpine AS base
+# Node 24: `node:sqlite` 를 플래그 없이 쓸 수 있다 (22 는 --experimental-sqlite 필요).
+# 런 인덱스가 그걸 쓰므로 여기서 22 로 내리면 목록 질의가 죽는다.
+FROM node:24-alpine AS base
 # corepack 이 package.json 의 `packageManager` 를 그대로 쓴다.
 # 이걸 못 박지 않으면 컨테이너가 최신 major 를 집어 오고, 로컬과 다른 pnpm 이
 # 락파일을 거부한다 — pnpm 11 은 `minimumReleaseAge` 를 기본으로 켜므로
@@ -38,7 +40,7 @@ COPY . .
 RUN pnpm build
 
 # ── 3. 런타임 ───────────────────────────────────────────────────
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \

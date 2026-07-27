@@ -28,15 +28,20 @@ const PAD_BOTTOM = 26;
  * 먹히는 장면으로 읽힌다. 반대로 두면 정작 볼 것이 묻힌다.
  */
 const FILL: Record<ContextRole, string> = {
-  system: "#262B33",
-  skills: "#2F353D",
-  tools: "rgb(217 164 65 / 30%)",
-  history: "#7B8794",
-  retrieval: "#3A424C",
-  cacheRead: "#2F353D",
-  cacheWrite: "#3A424C",
-  freshInput: "#7B8794",
-  output: "#4A525D",
+  // 밝기 순서가 이야기다: **짓눌리는 쪽(히스토리·새 입력)을 가장 무겁게** 두고
+  // 밀어내는 쪽(조회·캐시 쓰기)을 가볍게 둔다. 그래야 무거운 띠가 먹히는 장면으로 읽힌다.
+  // 값은 테마 변수다 — 하드코딩된 다크 hex 를 쓰던 동안 라이트 테마에서는
+  // 네 띠가 전부 검은 덩어리 하나로 보였다.
+  system: "var(--ctx-1)",
+  skills: "var(--ctx-2)",
+  cacheRead: "var(--ctx-2)",
+  retrieval: "var(--ctx-3)",
+  cacheWrite: "var(--ctx-3)",
+  output: "var(--ctx-4)",
+  history: "var(--ctx-5)",
+  freshInput: "var(--ctx-5)",
+  // 도구 정의만 색을 얻는다 — 대부분 안 쓰이는 죽은 무게라서.
+  tools: "color-mix(in oklab, var(--warn) 34%, transparent)",
 };
 
 export function ContextStream({

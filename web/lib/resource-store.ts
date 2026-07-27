@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { DATA_DIR } from "@/lib/store";
+import { DATA_DIR } from "@/lib/paths";
 
 export const RESOURCE_KINDS = [
   "prompts",

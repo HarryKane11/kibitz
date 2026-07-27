@@ -1,6 +1,7 @@
 "use server";
 
-import { runAnalysis, providerStatuses } from "@/lib/analysis/run";
+import { runAnalysis, providerStatuses, savedAnalyses } from "@/lib/analysis/run";
+import { deleteAnalysis } from "@/lib/analysis/store";
 import {
   pollCliLogin,
   startCliLogin,
@@ -41,4 +42,14 @@ export async function startCodeAgentLogin(provider: string): Promise<CliLoginSta
 
 export async function pollCodeAgentLogin(sessionId: string): Promise<CliLoginPoll> {
   return pollCliLogin(sessionId);
+}
+
+/** 저장된 분석을 지운다. 오래됐거나 틀린 제안을 남겨 둘 이유는 없다. */
+export async function forgetAnalysis(runId: string, id: string) {
+  return deleteAnalysis(runId, id);
+}
+
+/** 새로고침 뒤 목록을 다시 읽는다. */
+export async function listAnalyses(runId: string) {
+  return savedAnalyses(runId);
 }

@@ -535,6 +535,16 @@ export async function getByModel() {
   return buildByModel();
 }
 
+/**
+ * 사용량 집계. 토큰이 어느 에이전트·작업·도구로 갔는가.
+ *
+ * 분류는 `lib/usage.ts` 가 도구 이름으로 결정론적으로 한다 — 모델에게 묻지 않는다.
+ */
+export async function getUsage(days = 30) {
+  const { buildUsage } = await import("@/lib/usage");
+  return buildUsage(allRuns(), days);
+}
+
 /** 트레이스 필터. URL 상태에서 그대로 넘어온다. */
 export interface TraceFilter {
   agent?: string;

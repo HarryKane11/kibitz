@@ -6,6 +6,7 @@
 |---|---|
 | [self-hosting.md](./self-hosting.md) | Docker · compose · 로컬 실행 |
 | [ingestion.md](./ingestion.md) | Claude Code · Codex 세션 읽기 |
+| [live-tracing.md](./live-tracing.md) | **OpenTelemetry 실시간 수집** — Langfuse·Phoenix 계측 그대로 |
 | [sdk.md](./sdk.md) | **코드로 만든 에이전트** 계측 (Python SDK) |
 | [quickstart.md](./quickstart.md) | 목적별 첫 trace 만들기 |
 | [concepts.md](./concepts.md) | trace · request group · observation · finding |

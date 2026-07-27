@@ -9,7 +9,9 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { DATA_DIR } from "@/lib/paths";
 import type { Run } from "@/lib/types";
+import { indexRun } from "@/lib/index-db";
 
 /**
  * 런타임 트레이스 저장소.
@@ -27,10 +29,11 @@ import type { Run } from "@/lib/types";
  * 파생 엔티티까지 전부 물든다.
  */
 
-/** 기본 위치. compose 는 볼륨으로, 로컬은 그냥 폴더로 쓴다. */
-export const DATA_DIR =
-  process.env.KIBITZ_DATA_DIR ??
-  join(/*turbopackIgnore: true*/ process.cwd(), ".kibitz", "traces");
+/**
+ * 경로는 `lib/paths.ts` 에 있다 — 여기 두면 인덱스와 순환 참조가 된다
+ * (그 파일 주석 참고). 기존 import 를 깨지 않으려고 재수출한다.
+ */
+export { DATA_DIR };
 
 function isRun(v: unknown): v is Run {
   if (typeof v !== "object" || v === null) return false;
@@ -77,6 +80,39 @@ export function loadStoredRuns(): Run[] {
   return out;
 }
 
+/** 저장된 트레이스 **파일 수**. 인덱스가 어긋났는지 싸게 확인하는 데 쓴다. */
+export function storedFileCount(): number {
+  if (!existsSync(/* turbopackIgnore: true */ DATA_DIR)) return 0;
+  try {
+    return readdirSync(/* turbopackIgnore: true */ DATA_DIR).filter(
+      (n) => n.endsWith(".json") && !n.startsWith("."),
+    ).length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * id 하나만 읽는다.
+ *
+ * 상세 화면이 `loadStoredRuns()` 로 전부 읽고 하나를 고르면, 트레이스가 늘어날 때마다
+ * 그 화면이 같이 느려진다. 파일 하나면 개수와 무관하게 일정하다.
+ */
+export function loadStoredRun(id: string): Run | null {
+  const safe = id.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 96);
+  const path = join(/* turbopackIgnore: true */ DATA_DIR, `${safe}.json`);
+  if (!existsSync(/* turbopackIgnore: true */ path)) return null;
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(/* turbopackIgnore: true */ path, "utf8"));
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    const found = list.find((item) => isRun(item) && item.id === id) ?? list.find(isRun);
+    return isRun(found) ? found : null;
+  } catch (err) {
+    console.warn(`[kibitz] ${safe}.json: 읽을 수 없습니다`, err);
+    return null;
+  }
+}
+
 /**
  * id 로 하나 저장. 같은 id 면 덮어쓴다 — 재전송이 멀등해야 한다.
  *
@@ -96,4 +132,7 @@ export function storeRun(run: Run): void {
   );
   writeFileSync(/* turbopackIgnore: true */ temporary, JSON.stringify(run), "utf8");
   renameSync(/* turbopackIgnore: true */ temporary, target);
+  // 파일이 원본, 인덱스는 파생. 순서가 이래야 인덱스가 없는 런은 있어도
+  // 인덱스에만 있는 런은 없다 — 후자는 화면에 유령이 뜬다.
+  indexRun(run);
 }

@@ -86,10 +86,12 @@ export function ChartFrame({
 
   return (
     <section
-      className={cn("rounded-lg border border-line bg-ink-800 p-5", className)}
+      // 차트에는 묶음이 필요하지만 카드일 필요는 없다. 채움을 빼고 실선을 가늘게
+      // 하면 페이지 바탕 위에 얹힌 영역으로 읽히고, 화면의 상자 무게가 내려간다.
+      className={cn("rounded-lg border border-hair p-4", className)}
       aria-label={t("a11y.chartOf", { name: title })}
     >
-      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
           {hint && <p className="mt-1 text-xs leading-relaxed text-fg-3">{hint}</p>}

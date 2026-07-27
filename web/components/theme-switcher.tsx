@@ -24,7 +24,14 @@ const OPTIONS: { key: ThemeChoice; icon: typeof Sun; label: MessageKey }[] = [
  * 바꾸는 그 프레임 동안 트랜지션을 끈다 (`.theme-switching`). 켜두면 화면 전체가
  * 색을 흘리며 번지고, 그건 전환이 아니라 고장으로 보인다.
  */
-export function ThemeSwitcher({ className }: { className?: string }) {
+export function ThemeSwitcher({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  /** 접힌 사이드바 — 버튼 하나로 다음 테마로 돌린다 */
+  compact?: boolean;
+}) {
   const t = useT();
   const [choice, setChoice] = usePersisted<ThemeChoice>("kibitz.theme", "system");
   // 시스템 설정이 바뀌면 `system` 선택은 따라가야 한다.
@@ -59,6 +66,25 @@ export function ThemeSwitcher({ className }: { className?: string }) {
     },
     [setChoice],
   );
+
+  if (compact) {
+    const at = OPTIONS.findIndex((o) => o.key === choice);
+    const next = OPTIONS[(at + 1) % OPTIONS.length];
+    const Current = OPTIONS[at < 0 ? 0 : at].icon;
+    return (
+      <button
+        onClick={() => pick(next.key)}
+        title={`${t("settings.appearance")} · ${t(next.label)}`}
+        className={cn(
+          "grid h-9 w-9 place-items-center rounded-md text-fg-2 transition-colors duration-100 hover:bg-hover hover:text-fg active:scale-[0.97]",
+          className,
+        )}
+      >
+        <Current className="h-4 w-4" aria-hidden />
+        <span className="sr-only">{t("settings.appearance")}</span>
+      </button>
+    );
+  }
 
   return (
     <div

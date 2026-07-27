@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "node scripts/ensure-traces.mjs && next dev",
     "build": "node scripts/ensure-traces.mjs && next build",
@@ -26,7 +29,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^24.13.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

@@ -73,6 +73,62 @@ KIBITZ_PROJECT_TOKENS='{
 Scoped ingest token으로 들어온 request의 `project` 값은 token의 project로 강제됩니다.
 Scoped read token은 같은 project의 API 결과만 볼 수 있습니다.
 
+## 저장소 — 왜 Postgres·ClickHouse·Redis·MinIO 가 없나
+
+Langfuse 는 그 다섯 개를 씁니다. 수백만 건이 목표이기 때문입니다:
+
+| 서비스 | Langfuse 에서 하는 일 | Kibitz |
+|---|---|---|
+| ClickHouse | trace·observation·score 분석 저장소 | SQLite 요약 인덱스 |
+| PostgreSQL | 프로젝트·프롬프트·데이터셋 등 트랜잭션 데이터 | JSON 파일 |
+| Redis | 수집 큐 + 캐시 | 없음 (요청 안에서 처리) |
+| Worker | 큐 소비, 무거운 처리 분리 | 없음 |
+| MinIO/S3 | 큰 페이로드 블롭 | 파일에 그대로 |
+
+Kibitz 는 Phoenix 쪽 모델입니다 — **컨테이너 하나, 외부 의존성 0**. `docker compose up`
+이 10초에 끝나는 게 그 대가입니다.
+
+### 천장을 재봤습니다
+
+합성 런(관측 27개)을 넣고 저장된 런을 읽는 경로를 측정했습니다:
+
+| 런 수 | 파일 전체 파싱 | 파싱량 |
+|---:|---:|---:|
+| 100 | 10ms | 2 MB |
+| 1,000 | 89ms | 22 MB |
+| 5,000 | 478ms | 108 MB |
+| 20,000 | 2,189ms | 430 MB |
+
+그래서 **런 요약 인덱스**(SQLite)를 넣었습니다. 목록·집계는 파일을 열지 않습니다:
+
+| 3,000 런 | 시간 |
+|---|---:|
+| `/api/live` 첫 호출 (인덱스 동기화 1회) | 497ms |
+| `/api/live` 이후 (인덱스 경유) | **31ms** |
+| `/api/runs` (아직 파일 경유) | 310ms |
+
+`node:sqlite` 는 Node 에 들어 있어 **의존성이 늘지 않습니다** (이미지는 Node 24 —
+22 는 `--experimental-sqlite` 가 필요합니다).
+
+### 인덱스는 파생입니다
+
+진실의 출처는 여전히 파일입니다. `.kibitz/index.db` 는 지워도 되고, 깨져도 되고,
+스키마가 바뀌어도 됩니다 — 파일 목록과 mtime 을 비교해 다시 만듭니다. 그래서
+마이그레이션이 없고, 인덱스가 틀렸을 때 데이터를 잃지 않습니다.
+
+```bash
+rm .kibitz/index.db     # 다음 요청에서 다시 만들어집니다
+```
+
+### 아직 파일 경유인 곳
+
+`/api/runs` 와 화면 컴포넌트들은 아직 전체 런을 파싱합니다. 필터 문법(숫자 비교·OR
+결합·전문 검색)을 SQL 로 옮기는 작업이 남아 있습니다. **1천 건 이하면 차이를 느끼지
+못합니다.** 그 이상을 쓰신다면 이 부분이 다음 작업입니다.
+
+수백만 건·다중 노드가 필요해지면 인덱스 자리에 Postgres 나 ClickHouse 를 끼우면
+됩니다 — 원본이 파일이므로 그때도 재수집이 아니라 재색인입니다.
+
 ## 다중 replica
 
 web container는 trace와 resource를 로컬 state로 들고 있지 않습니다. 여러 replica에
@@ -89,8 +145,9 @@ pnpm build
 pnpm start
 ```
 
-Node 22+ 가 필요합니다. `packageManager` 가 `package.json` 에 못 박혀 있으니
-corepack 이 알아서 맞는 pnpm 을 씁니다.
+**Node 24+ 가 필요합니다.** 런 요약 인덱스가 `node:sqlite` 를 쓰고, Node 22 에서는
+그게 `--experimental-sqlite` 뒤에 있습니다. `packageManager` 가 `package.json` 에
+못 박혀 있으니 corepack 이 알아서 맞는 pnpm 을 씁니다.
 
 > **pnpm 버전을 바꾸지 마세요.** pnpm 11 은 `minimumReleaseAge` 를 기본으로 켜서
 > 최근 배포된 패키지가 든 락파일을 거부합니다. 올릴 때는 의존성이 그 기간을 넘긴

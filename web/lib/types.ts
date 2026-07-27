@@ -287,6 +287,20 @@ export interface Run {
   unusedToolTokens: number;
   /** 최종 답변과 그 안 숫자들의 출처 */
   answer?: { text: string; claims: NumberClaim[] };
+  /**
+   * 아직 돌고 있는가.
+   *
+   * `status` 와 섞지 않는다 — 그건 "잘했나"에 대한 판정이고 이건 "끝났나"에 대한
+   * 사실이다. 둘을 한 필드에 넣으면 진행 중인 런의 정확도를 물었을 때 답이 없어진다.
+   *
+   * 루트 스팬이 아직 닫히지 않았고 마지막 스팬이 방금 도착했으면 열려 있다.
+   * 실시간 감시는 이 값 하나에 달려 있다.
+   */
+  open?: boolean;
+  /** 마지막 스팬이 도착한 시각. 열린 런의 "살아 있음" 판정에 쓴다. */
+  updatedAt?: string;
+  /** 지금까지 받은 스팬 수. 배치가 이어 들어오면 늘어난다. */
+  spanCount?: number;
 }
 
 /**
